@@ -5,18 +5,36 @@ final class PortalAudit
     public static function write(PortalApp $app,string $action,string $entity,string $key='',array $details=[],?array $actor=null): void
     {
         $actor??=$app->user();
-        try{$app->db()->prepare('INSERT INTO pisco_audit (occurred_at,user_id,username,role,action,entity,record_key,details) VALUES (?,?,?,?,?,?,?,?)')->execute([date('Y-m-d H:i:s.u'),$actor['server_id']??null,$actor['usuario']??'visitante',$actor['rol']??'publico',substr($action,0,80),substr($entity,0,100),substr($key,0,250),json_encode($details,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE)]);}
+        try{$app->db()->prepare('INSERT INTO intranet_audit (occurred_at,user_id,username,role,action,entity,record_key,details) VALUES (?,?,?,?,?,?,?,?)')->execute([date('Y-m-d H:i:s.u'),$actor['server_id']??null,$actor['usuario']??'visitante',$actor['rol']??'publico',substr($action,0,80),substr($entity,0,100),substr($key,0,250),json_encode($details,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE)]);}
         catch(PDOException $e){if($e->getCode()!=='42S02')throw $e;}
+    }
+    /**
+     * Elimina la auditoría más antigua que la retención configurada. Se ejecuta como máximo una vez al día
+     * (desde cron.php o mail-worker.php) y en lotes, para no bloquear la tabla en el hosting compartido.
+     * Devuelve las filas eliminadas, o null si hoy ya se ejecutó o la retención está desactivada.
+     */
+    public static function purge(PortalApp $app,?DateTimeImmutable $now=null): ?int
+    {
+        $months=$app->auditRetentionMonths();if($months===0)return null;
+        $now??=new DateTimeImmutable();$db=$app->db();$today=$now->format('Y-m-d');
+        $last=$db->prepare("SELECT setting_value FROM intranet_settings WHERE setting_key='audit_purged_day'");$last->execute();
+        if(json_decode((string)$last->fetchColumn(),true)===$today)return null;
+        $cutoff=$now->modify('-'.$months.' months')->format('Y-m-d H:i:s');$deleted=0;
+        $delete=$db->prepare('DELETE FROM intranet_audit WHERE occurred_at<? ORDER BY occurred_at LIMIT 5000');
+        for($batch=0;$batch<100;$batch++){$delete->execute([$cutoff]);$count=$delete->rowCount();$deleted+=$count;if($count<5000)break;}
+        $db->prepare("INSERT INTO intranet_settings (setting_key,setting_value) VALUES ('audit_purged_day',?) ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value)")->execute([json_encode($today,JSON_THROW_ON_ERROR)]);
+        if($deleted>0)self::write($app,'Depurar auditoría','Auditoría','',['filas'=>$deleted,'anteriores_a'=>$cutoff,'retencion_meses'=>$months],['usuario'=>'sistema','rol'=>'sistema']);
+        return $deleted;
     }
     public static function rows(PortalApp $app,int $limit=1000): array
     {
-        try{$rows=$app->db()->query('SELECT * FROM pisco_audit ORDER BY id DESC LIMIT '.max(1,min(5000,$limit)))->fetchAll();}
+        try{$rows=$app->db()->query('SELECT * FROM intranet_audit ORDER BY id DESC LIMIT '.max(1,min(5000,$limit)))->fetchAll();}
         catch(PDOException $e){if($e->getCode()==='42S02')return [];throw $e;}
         return array_map(fn($r)=>['id'=>'audit-'.$r['id'],'fecha'=>$r['occurred_at'],'usuario'=>$r['username'],'rol'=>$r['role'],'accion'=>$r['action'],'entidad'=>$r['entity'],'registro'=>$r['record_key'],'detalle'=>self::describe(json_decode($r['details'],true)??[])],$rows);
     }
     public static function legacy(PortalApp $app,array $data): array
     {
-        try{if($app->db()->query("SELECT setting_value FROM pisco_settings WHERE setting_key='legacy_audit_imported'")->fetchColumn())return [];}catch(PDOException $e){if($e->getCode()!=='42S02')throw $e;}
+        try{if($app->db()->query("SELECT setting_value FROM intranet_settings WHERE setting_key='legacy_audit_imported'")->fetchColumn())return [];}catch(PDOException $e){if($e->getCode()!=='42S02')throw $e;}
         return $data['auditoria']??[];
     }
     private static function describe(array $details): string

@@ -11,9 +11,11 @@ final class PortalError extends RuntimeException
 
 require_once __DIR__.'/Schema.php';
 require_once __DIR__.'/Policy.php';
+require_once __DIR__.'/IntranetScope.php';
 require_once __DIR__.'/Accounts.php';
 require_once __DIR__.'/Files.php';
 require_once __DIR__.'/Domain.php';
+require_once __DIR__.'/AcademicDocuments.php';
 require_once __DIR__.'/Forms.php';
 require_once __DIR__.'/Audit.php';
 require_once __DIR__.'/Backups.php';
@@ -21,6 +23,10 @@ require_once __DIR__.'/Patch.php';
 require_once __DIR__.'/Rules.php';
 require_once __DIR__.'/Services.php';
 require_once __DIR__.'/Academic.php';
+require_once __DIR__.'/Numbering.php';
+require_once __DIR__.'/Mail.php';
+require_once __DIR__.'/Notifications.php';
+require_once __DIR__.'/SmtpSettings.php';
 
 final class PortalApp
 {
@@ -56,7 +62,47 @@ final class PortalApp
 
     private ?PDO $connection = null;
 
-    public function __construct(private readonly array $config) {}
+    public function __construct(private readonly array $config,private readonly ?string $configFile=null) {}
+
+    /** Meses que se conserva la auditoría del servidor ('audit_retention_months'; 0 = sin límite). */
+    public function auditRetentionMonths(): int
+    {
+        $months=$this->config['audit_retention_months']??24;
+        if(!is_int($months)||$months<0)throw new PortalError(503,'audit_retention_months debe ser un entero mayor o igual a 0.');
+        return $months===0?0:max(6,$months);
+    }
+    private function smtpSettings(): SmtpSettings
+    {return new SmtpSettings($this->config,$this->configFile);}
+
+    public function smtpForm(): array
+    {$this->requireAdmin();return $this->smtpSettings()->view();}
+
+    public function saveSmtp(array $input): array
+    {
+        $this->requireAdmin();$this->rate('smtp-settings',20,60);
+        $result=$this->smtpSettings()->save($input);
+        PortalAudit::write($this,'Configurar correo SMTP','Configuración','SMTP');
+        return $result;
+    }
+
+    /** Envía un correo de prueba con la configuración guardada; por defecto al correo de la cuenta administradora. */
+    public function testSmtp(array $input): array
+    {
+        $admin=$this->requireAdmin();$this->rate('smtp-test',5,300);
+        $to=$input['to']??'';if($to===''||$to===null)$to=$admin['correo']??'';
+        if(!is_string($to)||strlen($to)>254||!filter_var($to,FILTER_VALIDATE_EMAIL))throw new PortalError(422,'Indica un correo destinatario válido para la prueba.');
+        $raw=$this->db()->query('SELECT data FROM intranet_state WHERE id=1')->fetchColumn();
+        $institution=(is_string($raw)?json_decode($raw,true):[])['config']['inst']['nombre']??'la institución';
+        $result=(new PortalMail($this->smtpSettings()->read()))->sendTest($this->db(),$to,is_string($institution)?$institution:'la institución');
+        PortalAudit::write($this,'Probar correo SMTP','Configuración','SMTP',['destinatario'=>$to,'resultado'=>$result['ok']?'Aceptado':'Rechazado']);
+        return $result+['to'=>$to];
+    }
+
+    public function processMail(int $limit=10,?string $recordId=null): array
+    {return (new PortalMail($this->smtpSettings()->read()))->process($this->db(),$limit,$recordId);}
+
+    public function mailStatus(): array
+    {$this->requireAdmin();return (new PortalMail($this->smtpSettings()->read()))->status($this);}
 
     public function db(): PDO
     {
@@ -67,10 +113,16 @@ final class PortalApp
                 [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_EMULATE_PREPARES => false,
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]
             );
-            try {
-                $roles=$this->connection->query("SELECT setting_value FROM pisco_settings WHERE setting_key='role_permissions'")->fetchColumn();
+            $loadRoles=function(){
+                $roles=$this->connection->query("SELECT setting_value FROM intranet_settings WHERE setting_key='role_permissions'")->fetchColumn();
                 PortalPolicy::configureRoles($roles?json_decode($roles,true,flags:JSON_THROW_ON_ERROR):[]);
-            } catch(PDOException $error) { if($error->getCode()!=='42S02')throw $error;PortalPolicy::configureRoles([]); }
+            };
+            try { $loadRoles(); } catch(PDOException $error) {
+                if($error->getCode()!=='42S02')throw $error;
+                // Las instalaciones anteriores usan tablas pisco_*; se renombran en la primera conexión.
+                try { if(!PortalSchema::migrateLegacyTables($this->connection))throw $error;$loadRoles(); }
+                catch(PDOException $retry) { if($retry->getCode()!=='42S02')throw $retry;PortalPolicy::configureRoles([]); }
+            }
         }
         return $this->connection;
     }
@@ -135,11 +187,11 @@ final class PortalApp
     public function bootstrap(): array
     {
         $state=$this->state();$full=json_decode($state['data'],true,flags:JSON_THROW_ON_ERROR);$user=$this->user();
-        try{$full['visitas']=$this->db()->query('SELECT visit_day,views FROM pisco_visits')->fetchAll(PDO::FETCH_KEY_PAIR);}catch(PDOException $e){if($e->getCode()!=='42S02')throw $e;$full['visitas']=[];}
-        $data=PortalPolicy::project($full,$user,$this->publicData($full));
+        try{$full['visitas']=$this->db()->query('SELECT visit_day,views FROM intranet_visits')->fetchAll(PDO::FETCH_KEY_PAIR);}catch(PDOException $e){if($e->getCode()!=='42S02')throw $e;$full['visitas']=[];}
+        $data=IntranetScope::project(PortalPolicy::project($full,$user,$this->publicData($full)));
         $data['usuarios']=$this->visibleAccounts($user,$full);
         if($user&&$user['rol']==='admin'){$data['auditoria']=[...PortalAudit::rows($this),...PortalAudit::legacy($this,$full)];$data['academico']['bitacora']=array_map(fn($r)=>['id'=>$r['id'],'f'=>$r['fecha'],'u'=>$r['usuario'],'a'=>$r['accion'],'m'=>$r['entidad'],'d'=>$r['registro'].' · '.$r['detalle']],PortalAudit::rows($this));}
-        return ['data'=>$data,'revision'=>(int)$state['revision'],'user'=>$user,'csrf'=>$_SESSION['csrf'],'schema_version'=>PortalSchema::VERSION,'roles'=>PortalPolicy::definitions()['roles']];
+        return ['data'=>$data,'revision'=>(int)$state['revision'],'user'=>$user,'csrf'=>$_SESSION['csrf'],'numberingYear'=>(int)date('Y'),'schema_version'=>PortalSchema::VERSION,'roles'=>PortalPolicy::definitions()['roles'],'scope'=>['mode'=>'intranet','website'=>'https://www.istpalpa.edu.pe/','modules'=>IntranetScope::MODULES]];
     }
     public function input(): array
     {
@@ -167,7 +219,7 @@ final class PortalApp
     {
         if(empty($_SESSION['user_id']))return null;
         if(!isset($_SESSION['auth_version'])){unset($_SESSION['user_id']);return null;}
-        $statement=$this->db()->prepare('SELECT * FROM pisco_users WHERE id=? AND active=1');$statement->execute([$_SESSION['user_id']]);$user=$statement->fetch();
+        $statement=$this->db()->prepare('SELECT * FROM intranet_users WHERE id=? AND active=1');$statement->execute([$_SESSION['user_id']]);$user=$statement->fetch();
         if(!$user){unset($_SESSION['user_id']);return null;}
         if(isset($_SESSION['auth_version'])&&(int)$_SESSION['auth_version']!==(int)($user['auth_version']??1)){unset($_SESSION['user_id'],$_SESSION['auth_version']);return null;}
         $_SESSION['auth_version']=(int)($user['auth_version']??1);return $this->accountDto($user);
@@ -179,7 +231,7 @@ final class PortalApp
     }
     private function state(bool $lock = false): array
     {
-        $state = $this->db()->query('SELECT data, revision FROM pisco_state WHERE id = 1'.($lock ? ' FOR UPDATE' : ''))->fetch();
+        $state = $this->db()->query('SELECT data, revision FROM intranet_state WHERE id = 1'.($lock ? ' FOR UPDATE' : ''))->fetch();
         if (!$state) throw new PortalError(503, 'Completa la instalación en /install.php.');
         $state['data']=json_encode($this->normalizeDates(json_decode($state['data'],true,flags:JSON_THROW_ON_ERROR)),JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE);
         return $state;
@@ -209,7 +261,7 @@ final class PortalApp
 
     private function updateState(array $data, int $revision): void
     {
-        $statement = $this->db()->prepare('UPDATE pisco_state SET data = ?, revision = ? WHERE id = 1');
+        $statement = $this->db()->prepare('UPDATE intranet_state SET data = ?, revision = ? WHERE id = 1');
         $statement->execute([json_encode($this->normalizeDates($data), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE), $revision]);
     }
 
@@ -217,16 +269,16 @@ final class PortalApp
     {
         $window = intdiv(time(), $seconds) * $seconds;
         $key = hash('sha256', $action.'|'.($_SERVER['REMOTE_ADDR'] ?? 'local').'|'.$window);
-        $statement = $this->db()->prepare('INSERT INTO pisco_rate_limits (rate_key,hits,expires_at) VALUES (?,1,?) ON DUPLICATE KEY UPDATE hits = hits + 1');
+        $statement = $this->db()->prepare('INSERT INTO intranet_rate_limits (rate_key,hits,expires_at) VALUES (?,1,?) ON DUPLICATE KEY UPDATE hits = hits + 1');
         $statement->execute([$key, $window + $seconds]);
-        $statement = $this->db()->prepare('SELECT hits FROM pisco_rate_limits WHERE rate_key = ?');
+        $statement = $this->db()->prepare('SELECT hits FROM intranet_rate_limits WHERE rate_key = ?');
         $statement->execute([$key]);
         if ((int)$statement->fetchColumn() > $limit) {
             header('Retry-After: '.max(1, $window + $seconds - time()));
             throw new PortalError(429, 'Demasiados intentos. Espera unos minutos antes de continuar.');
         }
         if (random_int(1, 100) === 1) {
-            $statement = $this->db()->prepare('DELETE FROM pisco_rate_limits WHERE expires_at < ? LIMIT 1000');
+            $statement = $this->db()->prepare('DELETE FROM intranet_rate_limits WHERE expires_at < ? LIMIT 1000');
             $statement->execute([time()]);
         }
     }
@@ -237,18 +289,18 @@ final class PortalApp
         $this->rate('login',60,60);
         $db=$this->db();$db->beginTransaction();
         try{
-            $stmt=$db->prepare('SELECT * FROM pisco_users WHERE username=? AND active=1 FOR UPDATE');$stmt->execute([$username]);$row=$stmt->fetch();
+            $stmt=$db->prepare('SELECT * FROM intranet_users WHERE username=? AND active=1 FOR UPDATE');$stmt->execute([$username]);$row=$stmt->fetch();
             if($row&&!empty($row['locked_until'])&&strtotime($row['locked_until'])>time()){$db->commit();throw new PortalError(423,'Cuenta bloqueada por intentos fallidos. Espera cinco minutos o solicita el desbloqueo.');}
             $ok=password_verify($input['password'],$row['password']??'$2y$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2uheWG/igi.');
             if(isset($input['role'])&&(!is_string($input['role'])||$input['role']!==($row['role']??'')))$ok=false;
             if(!$row||!$ok){
                 if($row){$failures=(int)($row['login_failures']??0)+1;$locked=$failures>=5?date('Y-m-d H:i:s',time()+300):null;
-                    $db->prepare('UPDATE pisco_users SET login_failures=?,locked_until=? WHERE id=?')->execute([$locked?0:$failures,$locked,$row['id']]);}
+                    $db->prepare('UPDATE intranet_users SET login_failures=?,locked_until=? WHERE id=?')->execute([$locked?0:$failures,$locked,$row['id']]);}
                 PortalAudit::write($this,'Intento de acceso fallido','Cuentas',$username,['bloqueada'=>isset($locked)&&$locked?'sí':'no'],['usuario'=>'visitante','rol'=>'publico']);
                 $db->commit();throw new PortalError(422,'Usuario o contraseña incorrectos.');
             }
-            if(password_needs_rehash($row['password'],PASSWORD_DEFAULT))$db->prepare('UPDATE pisco_users SET password=? WHERE id=?')->execute([password_hash($input['password'],PASSWORD_DEFAULT),$row['id']]);
-            $db->prepare('UPDATE pisco_users SET login_failures=0,locked_until=NULL,last_login=? WHERE id=?')->execute([date('Y-m-d H:i:s'),$row['id']]);$db->commit();
+            if(password_needs_rehash($row['password'],PASSWORD_DEFAULT))$db->prepare('UPDATE intranet_users SET password=? WHERE id=?')->execute([password_hash($input['password'],PASSWORD_DEFAULT),$row['id']]);
+            $db->prepare('UPDATE intranet_users SET login_failures=0,locked_until=NULL,last_login=? WHERE id=?')->execute([date('Y-m-d H:i:s'),$row['id']]);$db->commit();
         }catch(Throwable $e){if($db->inTransaction())$db->rollBack();throw $e;}
         PortalAudit::write($this,'Iniciar sesión','Cuentas',(string)$row['id'],[], $this->accountDto($row));
         session_regenerate_id(true);$_SESSION['user_id']=(int)$row['id'];$_SESSION['auth_version']=(int)($row['auth_version']??1);$_SESSION['csrf']=bin2hex(random_bytes(32));return ['ok'=>true];
@@ -267,32 +319,38 @@ final class PortalApp
     {
         $user=$this->requireUser();$this->rate('save',120,60);
         if(!isset($input['revision'])||!is_int($input['revision'])||(!isset($input['patch'])&&!is_array($input['data']??null)))throw new PortalError(422,'Contenido o revisión no válidos.');
-        return $this->transaction(function()use($input,$user){
+        // Los avisos generados al guardar (derivaciones, estados, bolsa) se envían tras responder; el cron queda como respaldo.
+        $result=$this->transaction(function()use($input,$user){
             $state=$this->state(true);$user=$this->requireUser();if(!isset($input['patch'])&&(int)$state['revision']!==$input['revision'])throw new PortalError(409,'Otra persona guardó cambios. Recarga la página antes de continuar.');
             $previous=json_decode($state['data'],true,flags:JSON_THROW_ON_ERROR);
             foreach($input['data']['usuarios']??[] as $account)if(!is_array($account)||isset($account['passHash'],$account['password'])||isset($account['passHash'])||isset($account['password']))throw new PortalError(422,'Las contraseñas se gestionan mediante el servicio de cuentas.');
-            $visible=PortalPolicy::project($previous,$user,$this->publicData($previous));$visible['usuarios']=$this->visibleAccounts($user,$previous);
+            $visible=IntranetScope::project(PortalPolicy::project($previous,$user,$this->publicData($previous)));$visible['usuarios']=$this->visibleAccounts($user,$previous);
             $incoming=isset($input['patch'])?PortalPatch::apply($visible,$input['patch']):$input['data'];
+            IntranetScope::assertChanges($visible,$incoming);
             $data=PortalPolicy::apply($previous,$visible,$incoming,$user);
-            PortalRules::structure($data);
+            PortalRules::structure($data);PortalRules::stateShape($previous,$data);
             $ops=$input['accounts']??[];if(!is_array($ops)||count($ops)>100)throw new PortalError(422,'Operaciones de cuentas no válidas.');
             foreach($ops as $operation){if(!is_array($operation))throw new PortalError(422,'Cuenta no válida.');$this->accountOperation($operation);}
             $aliases=[];$data=PortalFiles::persist($this,$data,$aliases,0,$previous);
             PortalServices::apply($previous,$data,$user);PortalRules::apply($previous,$data,$user);PortalRules::catalogs($data);
             PortalAcademic::validate($previous,$data);
-            PortalDomain::validate($previous,$data,$user);PortalDomain::syncCertificates($data);$this->validateBindings($data);
-            $allAccounts=array_map($this->accountDto(...),$this->db()->query('SELECT * FROM pisco_users')->fetchAll());
+            AcademicDocuments::validate($previous,$data);PortalDomain::validate($previous,$data,$user);PortalDomain::syncCertificates($data);AcademicDocuments::sync($data);$this->validateBindings($data);
+            $allAccounts=array_map($this->accountDto(...),$this->db()->query('SELECT * FROM intranet_users')->fetchAll());
             PortalDomain::notifications($previous,$data,$allAccounts);
-            $data['usuarios']=[];$data['__v']=13;$data['visitas']=$previous['visitas']??[];
+            PortalNotifications::changes($this->db(),$previous,$data,(int)$state['revision']+1,$allAccounts);
+            foreach(['expedientes','reclamos'] as $collection)foreach($data[$collection] as &$row)unset($row['sinAviso']);unset($row);
+            $data['usuarios']=[];$data['__v']=14;$data['visitas']=$previous['visitas']??[];
             $changed=[];foreach($data as $key=>$value)if(!PortalPolicy::equal($value,$previous[$key]??null))$changed[]=$key;
             PortalAudit::changes($this,$previous,$data,$user);
             $data['auditoria']=$previous['auditoria']??[];
             $this->updateState($data,(int)$state['revision']+1);
             $data=$this->normalizeDates($data);
-            $projected=PortalPolicy::project($data,$this->user(),$this->publicData($data));
+            $projected=IntranetScope::project(PortalPolicy::project($data,$this->user(),$this->publicData($data)));
             if($this->user()&&$this->user()['rol']==='admin'){$projected['auditoria']=[...PortalAudit::rows($this),...PortalAudit::legacy($this,$data)];$projected['academico']['bitacora']=array_map(fn($r)=>['id'=>$r['id'],'f'=>$r['fecha'],'u'=>$r['usuario'],'a'=>$r['accion'],'m'=>$r['entidad'],'d'=>$r['registro'].' · '.$r['detalle']],PortalAudit::rows($this));}
             return ['revision'=>(int)$state['revision']+1,'user'=>$this->user(),'users'=>$this->visibleAccounts($this->user(),$data),'normalized'=>$projected,'files'=>array_values($aliases)];
         });
+        if(PortalNotifications::$queued>0){PortalNotifications::$queued=0;portal_defer(fn()=>$this->processMail(10));}
+        return $result;
     }
     public function track(array $input): array
     {
@@ -302,7 +360,7 @@ final class PortalApp
         if(time()-$seen<10)return ['ok'=>true];
         if(count($_SESSION['page_views']??[])>100)$_SESSION['page_views']=[];
         $_SESSION['page_views'][$path]=time();
-        $this->db()->prepare('INSERT INTO pisco_visits (visit_day,views) VALUES (?,1) ON DUPLICATE KEY UPDATE views=views+1')->execute([date('Y-m-d')]);
+        $this->db()->prepare('INSERT INTO intranet_visits (visit_day,views) VALUES (?,1) ON DUPLICATE KEY UPDATE views=views+1')->execute([date('Y-m-d')]);
         return ['ok'=>true];
     }
     public function upload(): array
@@ -322,27 +380,34 @@ final class PortalApp
         if(!preg_match('/^(10|15|17|20)[0-9]{9}$/',$r['ruc']))throw new PortalError(422,'RUC no válido.');
         $weights=[5,4,3,2,7,6,5,4,3,2];$sum=0;foreach($weights as $i=>$w)$sum+=(int)$r['ruc'][$i]*$w;$digit=11-$sum%11;if($digit===10)$digit=0;if($digit===11)$digit=1;
         if($digit!==(int)$r['ruc'][10])throw new PortalError(422,'El dígito verificador del RUC no es válido.');
-        return $this->transaction(function()use($r){
+        $result=$this->transaction(function()use($r){
             $state=$this->state(true);$data=json_decode($state['data'],true);
             if(PortalPolicy::find($data['academico']['empresas'],'ruc',$r['ruc']))throw new PortalError(422,'Ya existe una empresa con ese RUC.');
             $id=max([0,...array_column($data['academico']['empresas'],'id')])+1;
             $company=[...array_diff_key($r,['password'=>1]),'id'=>$id,'validada'=>false,'estadoVal'=>'Pendiente','fechaReg'=>date('Y-m-d')];
-            $data['academico']['empresas'][]=$company;PortalDomain::staff($data,'Empresa pendiente de validación: '.$company['nom'],'bolsa');$this->updateState($data,(int)$state['revision']+1);
+            $data['academico']['empresas'][]=$company;PortalNotifications::received($this->db(),'empresas',$company,$data);PortalDomain::staff($data,'Empresa pendiente de validación: '.$company['nom'],'bolsa');$this->updateState($data,(int)$state['revision']+1);
             PortalAudit::write($this,'Registrar empresa','academico.empresas',(string)$id);
             $this->createAccount(['username'=>$r['ruc'],'name'=>$r['nom'],'email'=>$r['correo'],'password'=>$r['password'],'role'=>'empresa','vin'=>'emp:'.$id,'dni'=>$r['ruc']],false);
             return ['company'=>$company,'username'=>$r['ruc'],'revision'=>(int)$state['revision']+1];
         });
+        $companyMail=hash('sha256','empresas|'.$result['company']['id']);portal_defer(fn()=>$this->processMail(2,$companyMail));
+        return $result;
     }
     public function interfaceEvent(array $input): array
     {
         $this->requireUser();$this->rate('events',120,60);
-        $action=$input['action']??'';if(!in_array($action,['Exportar','Vista previa'],true))throw new PortalError(422,'Evento no permitido.');
+        $action=$input['action']??'';if(!in_array($action,['Exportar','Vista previa','Acceso denegado'],true))throw new PortalError(422,'Evento no permitido.');
+        if($action==='Acceso denegado'){
+            $entity=$input['entity']??'';$route=$input['route']??'';$reason=$input['reason']??'';
+            foreach([$entity,$route,$reason] as $value)if(!is_string($value)||strlen($value)>250)throw new PortalError(422,'Evento no válido.');
+            PortalAudit::write($this,$action,$entity!==''?$entity:'Intranet',$route,['origen'=>'Interfaz','motivo'=>$reason!==''?$reason:'Módulo no permitido para el rol']);return ['ok'=>true];
+        }
         $filename=$input['filename']??'';if(!is_string($filename)||strlen($filename)>200)throw new PortalError(422,'Nombre de archivo no válido.');
         PortalAudit::write($this,$action,'Interfaz',$filename,['origen'=>'Solicitud desde la interfaz','bytes'=>max(0,(int)($input['size']??0))]);return ['ok'=>true];
     }
     private function validateBindings(array $data): void
     {
-        foreach($this->db()->query('SELECT username,role,profile FROM pisco_users WHERE active=1')->fetchAll() as $row){$p=json_decode($row['profile']??'{}',true)??[];$target=null;
+        foreach($this->db()->query('SELECT username,role,profile FROM intranet_users WHERE active=1')->fetchAll() as $row){$p=json_decode($row['profile']??'{}',true)??[];$target=null;
             if(in_array($row['role'],['estudiante','egresado'],true))$target=PortalPolicy::find($data['academico']['estudiantes'],'id',PortalPolicy::binding($p,'est'));
             elseif($row['role']==='empresa')$target=PortalPolicy::find($data['academico']['empresas'],'id',PortalPolicy::binding($p,'emp'));
             elseif($row['role']==='docente'){$target=PortalPolicy::find($data['academico']['docentes'],'id',PortalPolicy::binding($p,'doc'));$person=PortalPolicy::find($data['personas'],'id',$p['personaId']??'');if(!$person||($person['deleted']??false))$target=null;}
@@ -352,7 +417,7 @@ final class PortalApp
     }
     public function installed(): bool
     {
-        try { return (int)$this->db()->query('SELECT COUNT(*) FROM pisco_users')->fetchColumn() > 0; }
+        try { return (int)$this->db()->query('SELECT COUNT(*) FROM intranet_users')->fetchColumn() > 0; }
         catch (PDOException $error) {
             if ($error->getCode() === '42S02') return false;
             throw $error;
@@ -373,7 +438,7 @@ final class PortalApp
             $this->transaction(function () use ($input) {
                 $seed = file_get_contents(__DIR__.'/data/portal.json');
                 json_decode($seed, true, flags: JSON_THROW_ON_ERROR);
-                $this->db()->prepare('INSERT INTO pisco_state (id,data,revision) VALUES (1,?,1) ON DUPLICATE KEY UPDATE id = id')->execute([$seed]);
+                $this->db()->prepare('INSERT INTO intranet_state (id,data,revision) VALUES (1,?,1) ON DUPLICATE KEY UPDATE id = id')->execute([$seed]);
                 $this->createAccount($input, false);
                 return [];
             });
@@ -392,7 +457,7 @@ final class PortalApp
             $present = array_key_exists($field, $input);
             $value = $input[$field] ?? null;
             if (!$present || $value === null || $value === '') {
-                if (in_array('required', $spec, true)) throw new PortalError(422, 'Completa el campo '.$field.'.');
+                if (in_array('required', $spec, true)) throw new PortalError(422, 'Completa '.PortalRules::label($field).'.');
                 if ($present) $result[$field] = $value;
                 continue;
             }
@@ -409,10 +474,14 @@ final class PortalApp
                     'min', 'max' => true,
                     default => true,
                 };
-                if (!$valid) throw new PortalError(422, 'Revisa el campo '.$field.'.');
+                if (!$valid) throw new PortalError(422, 'Revisa '.PortalRules::label($field).'.');
                 if ($kind === 'min' || $kind === 'max') {
                     $size = in_array('integer', $spec, true) ? (int)$value : (is_array($value) ? count($value) : preg_match_all('/./us', (string)$value));
-                    if (($kind === 'min' && $size < (int)$argument) || ($kind === 'max' && $size > (int)$argument)) throw new PortalError(422, 'El tamaño del campo '.$field.' no es válido.');
+                    if (($kind === 'min' && $size < (int)$argument) || ($kind === 'max' && $size > (int)$argument)) {
+                        $bound = ($kind === 'min' ? 'como mínimo ' : 'como máximo ').$argument;
+                        $unit = in_array('integer', $spec, true) ? 'debe ser '.$bound : (is_array($value) ? 'se permiten '.$bound.' elementos' : 'debe tener '.$bound.' caracteres');
+                        throw new PortalError(422, 'Revisa '.PortalRules::label($field).': '.$unit.'.');
+                    }
                 }
             }
             $result[$field] = in_array('integer', $spec, true) ? (int)$value : $value;
@@ -421,6 +490,7 @@ final class PortalApp
     }
     public function submit(string $type, array $input): array
     {
+        if (!in_array($type,['reclamos','expedientes'],true)) throw new PortalError(404,'Formulario fuera del alcance de la intranet.');
         if (!isset(self::RULES[$type])) throw new PortalError(404, 'Tipo de solicitud no disponible.');
         $this->rate('submissions', 10, 60);
         if (!is_string($input['idempotency_key'] ?? null) || !preg_match('/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i', $input['idempotency_key']) || !is_array($input['record'] ?? null)) {
@@ -435,7 +505,7 @@ final class PortalApp
         if (array_sum(array_column($record['archivos'] ?? [], 'size')) + ($record['adjunto']['size'] ?? 0) > 40 * 1024 * 1024) {
             throw new PortalError(422, 'Los adjuntos no pueden superar 40 MB en total.');
         }
-        return $this->transaction(function () use ($record, $type, $input) {
+        $result = $this->transaction(function () use ($record, $type, $input) {
             $state = $this->state(true);
             $data = json_decode($state['data'], true, flags: JSON_THROW_ON_ERROR);
             $record=$this->formDomain($type,$record,$data);
@@ -459,14 +529,12 @@ final class PortalApp
                 $days = (int)($cfg[$record['tipo'] === 'Queja' ? 'plazoQueja' : 'plazoReclamo'] ?? 15);
                 $record += ['plazoDias' => $days, 'vence' => $this->deadline($days, $data)->format(DATE_ATOM),
                     'responsable' => ['nombre' => $cfg['responsable'], 'cargo' => $cfg['cargo'], 'correo' => $cfg['correo']],
-                    'area' => '', 'notas' => [], 'respuesta' => '', 'notifInst' => 'Omitido', 'notifUser' => 'Omitido', 'anulado' => false];
+                    'area' => '', 'notas' => [], 'respuesta' => '', 'notifInst' => 'Ver panel', 'notifUser' => 'Ver panel', 'anulado' => false];
             }
             if ($type === 'expedientes') {
-                foreach (['MPV', 'DOC'] as $counter) {
-                    $data['config']['contadores'][$counter][$year] = (int)($data['config']['contadores'][$counter][$year] ?? 0) + 1;
-                }
+                $data['config']['contadores']['DOC'][$year] = (int)($data['config']['contadores']['DOC'][$year] ?? 0) + 1;
                 $cfg = $data['config']['mpv'];
-                $record['numero'] = sprintf('%s-%s-%06d', $cfg['prefijo'], $year, $data['config']['contadores']['MPV'][$year]);
+                $record['numero'] = PortalNumbering::next($data,$year);
                 $record['numDocumento'] = sprintf('DOC-%s-%06d', $year, $data['config']['contadores']['DOC'][$year]);
                 do { $record['cargoCod'] = strtoupper(bin2hex(random_bytes(8))); }
                 while (PortalPolicy::find($data['expedientes'], 'cargoCod', $record['cargoCod']) !== null);
@@ -487,6 +555,8 @@ final class PortalApp
             if (in_array($type, ['reclamos', 'expedientes'], true)) {
                 $record['historial'] = [['fecha' => $record['fecha'], 'usuario' => 'portal', 'estado' => 'Recibido', 'nota' => 'Registro recibido desde el portal.']];
             }
+            if($type==='expedientes')PortalMail::enqueue($this->db(),$record,$data);
+            if($type==='reclamos')PortalNotifications::received($this->db(),$type,$record,$data);
             $data[$type] = [$record, ...($data[$type] ?? [])];
             if(in_array($type,['mensajes','reclamos','expedientes'],true))PortalDomain::staff($data,'Nuevo registro: '.($record['codigo']??$record['numero']??$record['asunto']??$type),$type==='expedientes'?'mesa':$type);
             $this->updateState($data, (int)$state['revision'] + 1);
@@ -494,22 +564,35 @@ final class PortalApp
             $_SESSION['challenges'][$input['proof']['challenge_id']]['used_key']=$input['idempotency_key'];
             return ['record' => $record, 'status' => 201,'revision'=>(int)$state['revision']+1,'counters'=>$this->user()?($data['config']['contadores']??[]):null];
         });
+        if(in_array($type,['expedientes','reclamos'],true)){
+            $mailId=$type==='expedientes'?$result['record']['id']:hash('sha256',$type.'|'.$result['record']['id']);
+            // El primer intento SMTP se hace después de responder; si falla, el cron reintenta desde la cola.
+            portal_defer(fn()=>$this->processMail(3,$mailId));
+        }
+        return $result;
     }
 
     public function lookup(string $type, array $input): array
     {
-        if (!in_array($type, ['expedientes', 'reclamos', 'certificados', 'becarios'], true)) throw new PortalError(404, 'Consulta no disponible.');
+        if (!in_array($type, ['expedientes', 'reclamos', 'certificados'], true)) throw new PortalError(404, 'Consulta no disponible.');
         $this->rate('lookups', 10, 60);
-        $input = self::validate($input, ['reference' => 'required|string|max:150', 'document' => (in_array($type,['certificados','becarios'],true) ? 'nullable' : 'required').'|string|max:50', 'mode' => 'nullable|string|max:10']);
+        $lookupProof=$input['proof']??[];
+        $input = self::validate($input, ['reference' => 'required|string|max:150', 'document' => ($type==='certificados' ? 'nullable' : 'required').'|string|max:50', 'mode' => 'nullable|string|max:10']);
+        $input['proof']=$lookupProof;
         $data = json_decode($this->state()['data'], true, flags: JSON_THROW_ON_ERROR);
-        if (!in_array($input['mode'] ?? '', ['', 'codigo', 'dni'], true)) throw new PortalError(422, 'Modo de consulta no válido.');
+        if (!in_array($input['mode'] ?? '', ['', 'codigo', 'dni', 'nombre'], true)) throw new PortalError(422, 'Modo de consulta no válido.');
+        if($type==='certificados'&&!in_array($input['mode']??'',['dni','nombre'],true)&&$lookupProof!==[])$this->submissionProof('certificados',$input);
         if ($type === 'certificados' && ($input['mode'] ?? '') === 'dni' && !preg_match('/^[0-9]{8}$/', $input['reference'])) throw new PortalError(422, 'El DNI debe tener ocho dígitos.');
-        if ($type === 'becarios') {
-            if(!preg_match('/^[0-9]{8}$/',$input['reference']))throw new PortalError(422,'DNI no válido.');
-            $matches=[];foreach($data['becarios']??[] as $r)if(self::publishedScholarship($r,$data)&&($r['dni']??'')===$input['reference']){$r=array_intersect_key($r,array_flip(['id','periodoId','apellidos','nombres','programaId','tipoId','motivo','estado','dni']));$r['dni']='****'.substr($r['dni'],-4);$matches[]=$r;}return ['records'=>$matches];
-        }
-        if ($type === 'certificados' && ($input['mode'] ?? '') === 'dni') {
-            $matches=[]; foreach ($data['certificados']??[] as $r) if (!($r['deleted']??false) && ($r['dni']??'')===$input['reference']) $matches[]=array_intersect_key($r,array_flip(['id','codigo','nombres','programaId','tipo','detalle','fecha','estado','origen','motivo']));
+        if ($type === 'certificados' && in_array($input['mode']??'', ['dni','nombre'],true)) {
+            $this->submissionProof('certificados',$input);
+            $nameMode=$input['mode']==='nombre';$query=PortalRules::normal($input['reference']);
+            if($nameMode&&strlen($query)<3)throw new PortalError(422,'Ingresa al menos tres caracteres del nombre.');
+            $matches=[];
+            foreach($data['certificados']??[] as $r){
+                if($r['deleted']??false)continue;$name=PortalRules::normal($r['nombres']??'');
+                $hit=$nameMode ? count(array_filter(explode(' ',$query),fn($token)=>$token!==''&&!str_contains($name,$token)))===0 : ($r['dni']??'')===$input['reference'];
+                if($hit){$matches[]=AcademicDocuments::publicRecord($r);if(count($matches)>=100)break;}
+            }
             return ['records'=>$matches];
         }
         if ($type === 'reclamos') {
@@ -526,7 +609,7 @@ final class PortalApp
                 && (empty($record['cargoCod']) || !hash_equals($record['cargoCod'], strtoupper($input['document'])))) continue;
             foreach (['archivos', 'archivo', 'adjunto', 'notas', 'notaInterna', 'correo', 'telefono', 'direccion', 'usuarioRegistro'] as $key) unset($record[$key]);
             if ($type === 'certificados') {
-                $record = array_intersect_key($record, array_flip(['id', 'codigo', 'nombres', 'programaId', 'tipo', 'detalle', 'fecha', 'estado', 'origen', 'motivo']));
+                $record = AcademicDocuments::publicRecord($record);
             } else {
                 $record['historial'] = array_map(fn ($item) => array_intersect_key($item, array_flip(['fecha', 'estado'])), $record['historial'] ?? []);
             }

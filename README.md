@@ -1,49 +1,113 @@
-# IES Público Palpa — Portal institucional
+# Intranet institucional del IES Público Palpa
 
-Portal PHP/MySQL del **Instituto de Educación Superior Público “Palpa”**, adaptado a la información publicada en [www.istpalpa.edu.pe](https://www.istpalpa.edu.pe/) y consultada el **29 de octubre de 2026**.
+`ranyuo/app` contiene la aplicación de **gestión académica y administrativa complementaria**. La institución conserva su [web pública](https://www.istpalpa.edu.pe/), desde la que puede enlazar a esta intranet y a sus formularios de servicios.
 
-Incluye identidad y colores institucionales, presentación de la Dirección, historia, misión y visión, organigrama, 13 cargos jerárquicos y 34 fichas de personal. Oferta cinco programas: Arquitectura de Plataformas y Servicios de Tecnologías de Información, Enfermería Técnica, Guía Oficial de Turismo, Mecatrónica Automotriz y Producción Agropecuaria. Sus fichas contienen perfiles, campo laboral, coordinación y **231 unidades didácticas** organizadas por módulos y semestres.
+La entrada `/` abre el inicio de sesión. Cada usuario ve únicamente los módulos de su perfil. La aplicación no administra noticias, banners, admisión, TUPA ni las páginas de la web institucional. Las rutas de esos componentes están deshabilitadas y la API rechaza sus modificaciones, incluido el administrador. Los datos heredados se conservan en la base para evitar pérdidas.
 
-Se incorporaron el reglamento de admisión 2026 (135 vacantes), el cronograma de matrícula 2026-II, **32 beneficiarios de becas**, **31 tasas del TUPA 2026**, seis documentos de gestión, indicadores de 2021–2026, dos locales, servicios y la **R.M. N.º 200-2025-MINEDU** de licenciamiento. Los **48 recursos oficiales utilizados** se sirven localmente desde `public_html/assets/palpa/`; sus fuentes y hashes se registran en `portal-private/data/palpa-sources.json`.
+## Módulos
 
-Los procesos publicados no se presentan como inscripciones abiertas. Horas y créditos por unidad, DNI, cuentas bancarias, RUC, código modular, noticias y datos académicos no confirmados no se inventan. Las diferencias entre fuentes se documentan en [MAPEO-PALPA.md](MAPEO-PALPA.md).
+| Área | Funciones |
+| --- | --- |
+| Horarios | Catálogos académicos, programación, validación de cruces, publicación y consulta por perfil |
+| Constancias y certificados | Estudiantes, notas, certificaciones modulares y validación de documentos |
+| Grados y títulos | Registro y consulta institucional de titulados |
+| Mesa de partes | Recepción de documentos, adjuntos privados, cargo, derivación y seguimiento |
+| Libro de reclamaciones | Registro, atención, respuesta e historial |
+| Bolsa laboral | Empresas, validación de ofertas, perfiles, CV, postulaciones y seguimiento |
+| Portafolio docente | Formación, experiencia, certificaciones, proyectos y publicación autorizada |
 
-## Instalación
+Programas, alumnos, docentes, unidades didácticas, ambientes y módulos formativos son catálogos de soporte. Usuarios, permisos, configuración, auditoría y respaldos son herramientas comunes.
 
-Requiere PHP 8.2 o posterior, PDO MySQL, sesiones, Fileinfo, Zlib y MySQL/MariaDB. No necesita Composer ni compilación.
+Consulta [ALCANCE-INTRANET.md](ALCANCE-INTRANET.md) para la separación respecto a la web actual y los accesos que deben enlazarse desde ella, y [OPERACION-INTRANET.md](OPERACION-INTRANET.md) para el uso básico.
 
-1. Conserva `portal-private/` y `public_html/` al mismo nivel. La raíz pública debe ser `public_html/`.
-2. Copia `portal-private/config.example.php` a `config.php` y configura una base vacía y una `install_key` aleatoria privada de al menos 32 caracteres.
-3. Abre `/install.php` mediante HTTPS y crea tu administrador. La carga inicial no contiene alumnos, usuarios ni expedientes ficticios.
-4. Revisa responsables, permisos y destinatarios de trámites. El correo de Mesa de Partes publicado se usa como contacto central; no representa buzones independientes por oficina. El envío de correos sigue pendiente de habilitación.
-5. Retira los instaladores y recuperadores del hosting cuando ya no sean necesarios. No subas pruebas, evidencias ni credenciales locales.
+## Requisitos e instalación
 
-## Instalaciones existentes
+PHP 8.2 o posterior, PDO MySQL, sesiones, Fileinfo, Zlib y MySQL/MariaDB. La cuadrícula responsive de Bootstrap 5.3.8 y las bibliotecas del cliente se sirven localmente; no se requiere Composer ni compilación.
 
-Subir archivos no reemplaza el contenido guardado en MySQL. Respalda base y archivos, conserva tu configuración y adjuntos, inicia sesión como administrador y abre `/actualizar.php`. Introduce tu clave de instalación y selecciona **«Reemplazar el contenido público actual con la información de Palpa»**.
+1. Mantén `portal-private/` y `public_html/` al mismo nivel; la raíz pública debe ser `public_html/`.
+2. Copia `portal-private/config.example.php` a `config.php`. Configura una base propia y una `install_key` privada aleatoria de al menos 32 caracteres.
+3. Abre `/install.php` mediante HTTPS y crea tu administrador. No hay cuentas ni estudiantes de demostración en la carga inicial.
+4. Asigna responsables, áreas, usuarios y permisos; registra progresivamente la información académica real.
+5. Retira instaladores y recuperadores del hosting cuando dejen de ser necesarios. No publiques configuración, pruebas ni respaldos privados.
 
-`PalpaContent.php` crea un respaldo privado, actualiza los catálogos públicos y conserva cuentas, contraseñas, solicitudes y registros académicos. Mantiene los identificadores académicos existentes. Las personas anteriores se conservan fuera de publicación y los programas retirados en borrador, con sus registros académicos inactivos para nuevas operaciones. Revisa tus ediciones institucionales antes de reemplazarlas.
+El despliegue y la vinculación desde la web oficial se coordinan por separado. La aplicación usa rutas desde la raíz: debe instalarse como aplicación independiente con su propia raíz web; su alojamiento concreto aún no se ha configurado. No requiere editar ni sustituir la web de Palpa.
 
-## Desarrollo y validación
+La auditoría se conserva 24 meses por defecto: el cron (`cron.php` o `mail-worker.php`) borra una vez al día los registros más antiguos y deja constancia de la depuración. Se ajusta con `audit_retention_months` en `config.php` (mínimo 6; `0` conserva todo). Los textos iniciales más largos que el límite de su formulario se recortan al cargarse para que el registro pueda volver a guardarse. Si la base existe pero está vacía, la intranet indica abrir `/install.php`.
 
-En este entorno: `bash /workspace/nasca-dev/start.sh`. El nombre histórico del helper no cambia la institución del portal. Usa `/workspace/nasca-dev/php` como ejecutable PHP; la configuración local y la base desechable `nasca_test` están vinculadas al contenedor. No imprimir ni versionar sus credenciales.
+Los PDF se generan en el navegador con jsPDF 4.2.1 y jsPDF-AutoTable 5.0.9, servidos localmente; sus versiones, hashes y licencias están en `public_html/assets/vendor/` (`versions.json`, `FUENTES.md`) y `tests/vendor-audit.py` los verifica.
 
-Las pruebas PHP que modifican datos solo aceptan bases terminadas en `_test` y `PORTAL_CONFIG_FILE` terminado en `config.test.php`. Desde el repositorio, en este orden:
+En una instalación existente, respalda archivos y base antes de actualizar el código. `/actualizar.php` conserva los datos y actualiza el esquema; la opción de reemplazar contenido público está deshabilitada en esta intranet.
+
+## Pruebas
+
+Solo sobre una base desechable terminada en `_test`, con `PORTAL_CONFIG_FILE` apuntando a `config.test.php`. La suite PHP **recrea tablas** y carga sus propios datos y usuarios QA.
 
 ```sh
-node tests/palpa-content.cjs
-php tests/demo-validation.php
-PORTAL_CONFIG_FILE=/ruta/config.test.php php tests/run.php
-PORTAL_CONFIG_FILE=/ruta/config.test.php php tests/parity.php
-PORTAL_CONFIG_FILE=/ruta/config.test.php php tests/palpa-import.php
-PORTAL_CONFIG_FILE=/ruta/config.test.php php tests/functional-fixes.php
-PISCO_BASE_URL=http://127.0.0.1:8083 node tests/browser-palpa.cjs
+PORTAL_CONFIG_FILE=/ruta/config.test.php php tests/intranet.php
+PORTAL_CONFIG_FILE=/ruta/config.test.php php -S 127.0.0.1:8084 -t public_html
+PORTAL_BASE_URL=http://127.0.0.1:8084 node tests/browser-intranet.cjs
 ```
 
-Playwright y Chromium son herramientas externas para las pruebas web; no son dependencias del hosting. En este entorno se usa `NODE_PATH=/workspace/nasca-dev/tools/node_modules`. El servidor local debe usar la misma configuración de pruebas:
+Para correr todas las suites en el orden correcto (cada una sobre el estado que preparan `tests/intranet.php` y `tests/mail.php`):
 
 ```sh
-PORTAL_CONFIG_FILE=/ruta/config.test.php php -S 127.0.0.1:8083 -t public_html
+PORTAL_CONFIG_FILE=/ruta/config.test.php bash tests/run.sh
+PORTAL_CONFIG_FILE=/ruta/config.test.php CHROMIUM_PATH=/ruta/chromium bash tests/run.sh --browser
+python3 tests/vendor-audit.py --advisories
 ```
 
-Los informes, recursos y pruebas de Nasca, Chincha y Pisco son antecedentes históricos; no acreditan validación de Palpa. La adaptación no implica despliegue ni publicación del entorno.
+GitHub Actions (`.github/workflows/qa.yml`) ejecuta lo mismo en cada push y pull request: integridad y avisos de seguridad de las bibliotecas del navegador, sintaxis, todas las pruebas PHP con MariaDB 10.11 en PHP 8.2 y 8.3, y todas las pruebas de navegador con Chromium. Usa una base y credenciales desechables propias del CI; no necesita secretos.
+
+Las pruebas web requieren Playwright y Chromium externos; `CHROMIUM_PATH` indica el ejecutable (por defecto, `/usr/bin/chromium`). El servidor debe usar la misma base que la prueba PHP. En este entorno se dispone de los contenedores `app-php` y `app-db`, configuración privada en `/workspace/app-dev/config.test.php`, base `app_test` y Playwright en `/workspace/nasca-dev/tools/node_modules`.
+
+```sh
+docker exec -w /workspace/app app-php php tests/intranet.php
+NODE_PATH=/workspace/nasca-dev/tools/node_modules PORTAL_BASE_URL=http://127.0.0.1:8084 node tests/browser-intranet.cjs
+docker exec -w /workspace/app app-php php tests/area-compatibility.php
+NODE_PATH=/workspace/nasca-dev/tools/node_modules PORTAL_BASE_URL=http://127.0.0.1:8084 node tests/browser-areas.cjs
+docker exec -w /workspace/app app-php php tests/inactive-routing.php
+docker exec -w /workspace/app app-php php tests/legacy-migration.php
+docker exec -w /workspace/app app-php php tests/intranet.php && docker exec -w /workspace/app app-php php tests/qa-correcciones.php
+docker exec -w /workspace/app app-php php tests/intranet.php && NODE_PATH=/workspace/nasca-dev/tools/node_modules PORTAL_BASE_URL=http://127.0.0.1:8084 node tests/browser-qa-correcciones.cjs
+```
+
+Se retiraron los informes, paquetes y suites históricas del portal completo; se conservan las pruebas vigentes de esta intranet. `tests/legacy-migration.php` comprueba el paso de las tablas heredadas `pisco_*` a `intranet_*` y la restauración de respaldos `.piscobak`. Las pruebas actuales evalúan el alcance reducido, los permisos y los recorridos conservados. El correo saliente para nuevos trámites requiere habilitar SMTP y cron según [NOTIFICACIONES-CORREO.md](NOTIFICACIONES-CORREO.md). La carga de información académica real sigue pendiente de configuración institucional.
+
+## Paquete para Hostinger
+
+Las instrucciones de subida y configuración están en [HOSTINGER-INSTALACION.md](HOSTINGER-INSTALACION.md). Para generar el paquete de instalación nueva desde un commit limpio:
+
+```sh
+python3 scripts/package-hostinger.py /ruta/fuera-del-repositorio/intranet-palpa-hostinger.zip
+```
+
+El empaquetador incluye solo archivos versionados necesarios para la instalación, los recursos activos de Palpa, las bibliotecas y las instrucciones. Excluye configuraciones privadas, respaldos, pruebas y recursos históricos ajenos a la instalación nueva. Añade versión y hashes de integridad.
+
+Para aplicar las correcciones del QA a una instalación existente, consulta [ACTUALIZACION-QA-HOSTINGER.md](ACTUALIZACION-QA-HOSTINGER.md); para las mejoras posteriores al plan de pruebas y el cambio de nombres internos, [ACTUALIZACION-MEJORAS.md](ACTUALIZACION-MEJORAS.md). El resultado verificado y sus límites están en [QA-CORRECCIONES-INTRANET.md](QA-CORRECCIONES-INTRANET.md).
+
+La limpieza de archivos y las mediciones de tamaño se documentan en [LIMPIEZA-REPOSITORIO.md](LIMPIEZA-REPOSITORIO.md).
+
+## Configuración académica y documentos
+
+La configuración compartida y los tres módulos documentales se describen en
+[OPERACION-INTRANET.md](OPERACION-INTRANET.md#configuración-académica-compartida-y-documentos).
+Además de la suite base, las regresiones de esta funcionalidad se ejecutan sobre la misma
+base desechable, en este orden:
+
+```sh
+PORTAL_CONFIG_FILE=/ruta/config.test.php php tests/intranet.php
+PORTAL_CONFIG_FILE=/ruta/config.test.php php tests/academic-documents.php
+PORTAL_BASE_URL=http://127.0.0.1:8084 node tests/browser-academic-documents.cjs
+```
+
+El segundo comando conserva los datos de la suite base y agrega sus propios documentos QA.
+No debe ejecutarse sobre una instalación real. Las unidades heredadas permanecen pendientes
+de asociación a módulos hasta que el personal complete esa configuración.
+
+Las cuatro páginas públicas tienen entradas independientes: `/mesa-de-partes.php`,
+`/libro-de-reclamaciones.php`, `/bolsa-laboral.php` y `/certificados.php`. Sus funciones y
+accesos se describen en [Operación](OPERACION-INTRANET.md#páginas-públicas-independientes).
+La regresión `node tests/browser-standalone-services.cjs` se ejecuta sobre los datos de
+`tests/intranet.php` y verifica aislamiento de páginas, móvil, privacidad y acceso laboral
+con guardado real. `tests/browser-areas.cjs` prueba envíos y derivaciones usando las nuevas
+entradas públicas.

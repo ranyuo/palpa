@@ -1,16 +1,27 @@
+<?php
+$portalAssets=[];
+foreach(['intranet.css','portal-server.js','intranet.js','academic-documents.js','standalone-services.js'] as $asset){
+    $assetPath=dirname(__DIR__,2).'/public_html/'.$asset;
+    if(!is_readable($assetPath))throw new PortalError(503,'Faltan recursos de la aplicación. Completa la subida de archivos.');
+    $digest=hash_file('sha256',$assetPath);
+    if($digest===false)throw new PortalError(503,'No se pudieron verificar los recursos de la aplicación.');
+    $portalAssets[$asset]='/'.$asset.'?v='.substr($digest,0,12);
+}
+?>
 <!doctype html>
 <html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= htmlspecialchars($bootstrap['data']['config']['seo']['titulo'] ?? $bootstrap['data']['config']['inst']['nombre'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></title>
-<meta name="description" content="<?= htmlspecialchars($bootstrap['data']['config']['seo']['descripcion'] ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>">
+<title>Intranet Palpa | Gestión académica y administrativa</title>
+<meta name="description" content="Intranet del IES Público Palpa: gestión académica, trámites, empleabilidad y perfiles docentes.">
 <meta property="og:type" content="website">
 <meta name="theme-color" content="#131d3b">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230a2a5e'/%3E%3Cpath d='M14 30 32 20l18 10-18 10z' fill='%23f2b705'/%3E%3Cpath d='M22 35v8c6 5 14 5 20 0v-8' fill='none' stroke='%23fff' stroke-width='3'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:ital,wght@0,600;0,700;0,800;1,600&family=Poppins:wght@500;600;700;800&family=Merriweather:wght@700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/vendor/bootstrap/bootstrap-grid.min.css">
 <style id="ix-css">
 .ix{--bg:#f3f6f5; --surface:#ffffff; --surface-2:#eef3f2; --line:#dbe4e1; --line-2:#c8d5d1; --fg:#12201d; --muted:#586a65;
   --brand:#0f5e57; --brand-2:#13786f; --brand-ink:#ffffff; --brand-soft:#dcefeb; --accent:#c08424; --accent-soft:#f8ecd6;
@@ -1579,11 +1590,11 @@ a.db-kpi:hover{transform:translateY(-3px);box-shadow:var(--sh2);border-color:var
 .toast.warn{border-left-color:#fbbf24}
 
 </style>
-<script src="/assets/vendor/jspdf.umd.min.js" defer></script>
-<script src="/assets/vendor/jspdf.plugin.autotable.min.js" defer></script>
+<script src="/assets/vendor/jspdf.umd.min.js?v=4.2.1" defer></script>
+<script src="/assets/vendor/jspdf.plugin.autotable.min.js?v=5.0.9" defer></script>
 <script src="/assets/vendor/xlsx.full.min.js" defer></script>
 <script src="/assets/vendor/qrcode.min.js" defer></script>
-<style id="pisco-css">
+<style id="portal-css">
 /* ===== Portal Web IES PALPA 2026: módulos del informe N.º 009-2026 ===== */
 .pz-h2{font-size:18px;margin:18px 0 10px;color:var(--hc)}
 .pz-h2row{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
@@ -1599,6 +1610,23 @@ a.db-kpi:hover{transform:translateY(-3px);box-shadow:var(--sh2);border-color:var
 .pz-horario.compact{padding:10px 16px}.pz-horario.compact .pz-hh{font-size:18px}
 .pz-live{font-size:13px;margin-top:4px}.pz-live.ok{color:#9ff0bd}.pz-live.off{color:#ffd59a}.pz-live b{font-size:13px;color:#fff}
 .pz-form{padding:20px}
+.pz-mpv-top{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,auto);gap:12px;align-items:stretch;margin:0 0 14px}
+.pz-mpv-top>*{margin:0}
+.pz-mh.compact{padding:12px 16px;gap:12px;align-items:center}.pz-mh.compact .pz-mh-ic{width:42px;height:42px;border-radius:10px}.pz-mh.compact .pz-mh-ic svg{width:22px;height:22px}
+.pz-mh.compact .pz-mh-k{font-size:11px}.pz-mh.compact h1{font-size:20px;margin:2px 0}.pz-mh.compact p{font-size:13.5px;line-height:1.4}
+.pz-horario.compact{padding:10px 16px;gap:12px;max-width:460px}.pz-horario.compact .pz-h-ic{width:40px;height:40px}.pz-horario.compact .pz-h-ic svg{width:22px;height:22px}
+.pz-horario.compact .pz-k{font-size:11px}.pz-horario.compact .pz-hh{font-size:17px}.pz-horario.compact .pz-live{font-size:12px;margin-top:2px}.pz-horario.compact .pz-live b{font-size:12px}
+@media (min-width:1000px){.pz-form .form-grid,.pz-qf .form-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.pz-qf .form-grid>.full{grid-column:1/-1}.pz-form .form-grid>.w2{grid-column:span 2}}
+@media (min-width:1100px){.pz-lr .form-grid.g4{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.pz-mpv-top~.pz-cq-wrap{grid-template-columns:minmax(0,1fr)}
+.pz-mpv-top~.pz-cq-wrap .pz-cq-i{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.pz-mpv-top~.pz-cq-wrap .pz-cq-i h3:not(:first-child){margin-top:12px}
+.pz-mpv-top~div .pz-bl-e2{grid-template-columns:minmax(0,1fr)}
+.pz-mpv-top~div .pz-bl-e2 .pz-bl-side{grid-template-columns:repeat(3,minmax(0,1fr));align-items:start}
+.pz-lr-inf .pz-info3{max-width:none;margin:18px 0 0}
+@media (max-width:900px){.pz-mpv-top~.pz-cq-wrap .pz-cq-i,.pz-mpv-top~div .pz-bl-e2 .pz-bl-side{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:900px){.pz-mpv-top{grid-template-columns:minmax(0,1fr)}.pz-horario.compact{max-width:none}}
+@media (max-width:760px){.pz-horario.compact{flex-direction:row;text-align:left}}
 .pz-sec-h{display:flex;align-items:center;gap:10px;margin:18px 0 10px;border-bottom:2px solid var(--line);padding-bottom:6px}
 .pz-sec-h:first-child{margin-top:0}
 .pz-sec-h span{width:28px;height:28px;border-radius:50%;background:var(--navy);color:#fff;display:grid;place-items:center;font-weight:700;font-size:14px}
@@ -2184,9 +2212,10 @@ tr.pz-bad td{background:var(--errbg)}
 .ix .seal.logo:has(img[src^="/assets/palpa/"]),.ix .paper .ph .plogo[src^="/assets/palpa/"]{background:#131d3b}
 @media(max-width:600px){.grid.g4:has(>.pcard){grid-template-columns:1fr}.brand img[src^="/assets/palpa/"]{width:86px;height:50px;padding:6px}.site-header .brand span small{font-size:10px}}
 </style>
+<link rel="stylesheet" href="<?=htmlspecialchars($portalAssets['intranet.css'],ENT_QUOTES,'UTF-8')?>">
 </head>
 <body>
-<noscript><p style="padding:20px">Este portal requiere JavaScript habilitado.</p></noscript>
+<noscript><p style="padding:20px">La intranet requiere JavaScript habilitado.</p></noscript>
 <div id="app" aria-live="off"></div>
 <script>window.PORTAL_BOOTSTRAP = <?= json_encode(PortalContent::forJson($bootstrap), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_THROW_ON_ERROR) ?>;</script>
 <div class="ix ix-layer" id="ix-layer" data-palette="web"><div id="ixmodal"></div></div>
@@ -2199,7 +2228,7 @@ function IX_FACTORY(HOST){
    Núcleo: almacenamiento, datos de demostración, utilidades, CRUD,
    documentos (PDF con QR de verificación) y exportaciones (Excel/PDF).
    ===================================================================== */
-const SKEY = "iestp-pisco-sesion";
+const SKEY = "intranet-palpa-sesion";
 const LS = {
   get(k){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : null }catch(e){ return null } },
   set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)) }catch(e){} },
@@ -2278,10 +2307,10 @@ const MODS = [
   ["inicio","Mi panel","",""],
   ["alumnos","Maestro de alumnos","1.0","Gestión académica"],
   ["horarios","Programación de horarios","1.1","Gestión académica"],
-  ["certificados","Constancias y certificación modular","1.2","Gestión académica"],
+  ["certificados","Certificación modular","1.2","Gestión académica"],
   ["titulos","Grados y títulos","1.3","Gestión académica"],
   ["bolsa","Bolsa laboral","2.3","Servicios"],
-  ["config","Configuración académica","","Configuración"]];
+  ["config","Configuración académica general","","Configuración"]];
 /* ---------- iconos (SVG en línea) ---------- */
 const _i = d => `<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICO = {
@@ -2307,7 +2336,9 @@ const ICO = {
   globe:_i('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>')
 };
 /* tema claro/oscuro: preferencia del usuario, por defecto la del sistema */
-const TKEY = "iestp-pisco-tema";
+const TKEY = "intranet-palpa-tema";
+// Conserva la preferencia guardada con la clave anterior del portal.
+try { const old = localStorage.getItem("iestp-pisco-tema"); if (old !== null && localStorage.getItem(TKEY) === null) localStorage.setItem(TKEY, old); localStorage.removeItem("iestp-pisco-tema"); localStorage.removeItem("iestp-pisco-sesion"); } catch (e) { }
 const isDark = () => document.documentElement.dataset.mode === "dark";
 const themeBtn = () => `<button class="iconbtn" data-act="theme" aria-label="${isDark() ? "Usar tema claro" : "Usar tema oscuro"}" title="${isDark() ? "Tema claro" : "Tema oscuro"}">${isDark() ? ICO.sun : ICO.moon}</button>`;
 
@@ -2446,10 +2477,11 @@ function confirmBox(title, msg, label, fn){ openModal({title, body:`<p>${msg}</p
 /* ---------- CRUD genérico ---------- */
 const ENT = {};
 function crudForm(ek, row, defaults){
-  const E = ENT[ek], fields = E.fields(row);if(ek==='programas'&&row?.pid)for(const f of fields)if(['cod','nombre'].includes(f.k)){f.ro=true;f.hint='Se administra desde Programas de estudio del portal.';}
+  if(lvl(ENT[ek].permMod)<2){toast("No tiene permiso de gestión.");return;}
+  const E = ENT[ek], fields = E.fields(row);if(ek==='programas'&&row?.pid)for(const f of fields)if(['cod','nombre'].includes(f.k)){f.ro=true;f.hint='Se administra desde el catálogo único de Programas de estudios.';}
   if(!row && !defaults && E.defaults) defaults = E.defaults();
   const base = row || defaults || {};
-  openModal({ title:(row ? "Editar " : "Nuevo ") + E.one, wide:E.wide, body:`<div class="f">${fields.map(f => fieldHtml(f, base[f.k])).join("")}</div>${E.formNote ? `<p class="note">${E.formNote}</p>` : ""}`,
+  openModal({ title:(row ? "Editar " : "Nuevo ") + E.one, wide:E.wide, body:`<div class="f">${fields.map(f => fieldHtml(f, base[f.k])).join("")}</div>${E.formNote ? `<p class="note">${E.formNote}</p>` : ""}${ek==="modulos"&&row?`<h3>Unidades didácticas asociadas</h3><p class="note">${DB.uds.filter(u=>u.mod===row.id).map(u=>esc(u.cod+" · "+u.nombre+" · Ciclo "+u.ciclo)).join("<br>")||"Sin unidades asociadas. Se vinculan desde Unidades didácticas."}</p>`:""}`,
     submit: row ? "Guardar cambios" : "Registrar",
     onSubmit: form => {
       const {vals, errs} = readFields(fields, form, DB[E.col], row && row.id);
@@ -2459,6 +2491,18 @@ function crudForm(ek, row, defaults){
       else { const r = Object.assign({id:nextId(DB[E.col])}, defaults || {}, vals); DB[E.col].push(r); E.after && E.after(r, true); log("Registrar", E.mod, E.label(r)); }
       if(!save())return false; toast("Cambios guardados en el servidor.");return true;
     }});
+  if(row&&["certs","titulos"].includes(ek)){
+    const form=document.querySelector('#mform');
+    for(const input of form.querySelectorAll('.mb input,.mb select,.mb textarea'))if(input.name!=='estadoDoc'){if(input.tagName==='SELECT')input.disabled=true;else input.readOnly=true;}
+    form.querySelector('.mb').insertAdjacentHTML('beforeend','<p class="note">Los datos de emisión son históricos. Puede anular este documento y registrar uno nuevo con otro código.</p>');
+  }
+  if(["uds","certs"].includes(ek)){
+    const form=document.querySelector('.ix [name="mod"]')?.closest('form') || document.querySelector('[name="mod"]')?.closest('form');
+    if(form){const source=form.querySelector(ek==='uds'?'[name="prog"]':'[name="est"]'),target=form.querySelector('[name="mod"]');
+      const fill=()=>{const selected=+target.value,programId=ek==='uds'?+source.value:est(+source.value).prog;
+        target.innerHTML=`<option value="">${ek==='uds'?'Pendiente de asociación':'Seleccione un módulo'}</option>`+DB.modulos.filter(m=>m.prog===programId).map(m=>`<option value="${m.id}" ${m.id===selected?'selected':''}>${esc(m.cod+' · '+m.nombre)}</option>`).join('');};
+      if(source&&target){source.addEventListener('change',fill);fill();}}
+  }
 }
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 function crud(ek, o = {}){
@@ -2480,6 +2524,7 @@ function crud(ek, o = {}){
     </tbody></table></div><span class="count">${rows.length} registro(s)</span>${o.note ? `<p class="note">${o.note}</p>` : ""}</section>`;
 }
 function crudDelete(ek, id){
+  if(lvl(ENT[ek].permMod)<2)return;
   const E = ENT[ek], row = byId(DB[E.col], id);
   const block = E.refs && E.refs(row);
   if(block){ openModal({title:"No se puede eliminar", body:`<div class="alert warn">${block}</div><p class="note">Para mantener la integridad de la información, primero reasigne o elimine los registros relacionados.</p>`}); return }
@@ -2629,7 +2674,7 @@ const PAT_MAIL = [/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i, "Ingrese un correo válido."]
 const PAT_PER = [/^\d{4}-(I|II)$/, "Use el formato 2026-I o 2026-II."];
 const cnt = (arr, fn) => arr.filter(fn).length;
 
-ENT.programas = { col:"programas", one:"programa de estudios", title:"Programas de estudios", mod:"Horarios", permMod:"horarios",
+ENT.programas = { col:"programas", one:"programa de estudios", title:"Programas de estudios", mod:"Horarios", permMod:"config",
   fields:() => [
     {k:"cod",l:"Código",req:true,uniq:true,upper:true,pat:[/^[A-Z0-9-]{2,10}$/,"De 2 a 10 caracteres, sin espacios."]},
     {k:"nombre",l:"Nombre del programa",req:true,w:1},
@@ -2641,21 +2686,23 @@ ENT.programas = { col:"programas", one:"programa de estudios", title:"Programas 
   label:r => r.cod,
   refs:r => { const n = cnt(DB.uds,u => u.prog === r.id) + cnt(DB.estudiantes,e => e.prog === r.id) + cnt(DB.modulos,m => m.prog === r.id); return n ? `El programa ${r.cod} tiene ${n} registro(s) asociados (unidades didácticas, módulos o estudiantes). Puede desactivarlo en lugar de eliminarlo.` : "" } };
 
-ENT.uds = { col:"uds", one:"unidad didáctica", title:"Unidades didácticas", mod:"Horarios", permMod:"horarios",
+ENT.uds = { col:"uds", one:"unidad didáctica", title:"Unidades didácticas", mod:"Horarios", permMod:"config",
   fields:() => [
     {k:"cod",l:"Código",req:true,uniq:true,upper:true},
     {k:"nombre",l:"Nombre de la unidad didáctica",req:true,w:1},
     {k:"prog",l:"Programa de estudios",t:"select",req:true,num:true,opts:optsProg(true)},
+    {k:"mod",l:"Módulo formativo",t:"select",num:true,none:"Pendiente de asociación",opts:() => DB.modulos.map(m=>[m.id,`${prog(m.prog).cod} · ${m.cod} · ${m.nombre}`]),hint:"Seleccione un módulo del mismo programa; los registros existentes pueden quedar pendientes."},
     {k:"ciclo",l:"Ciclo académico",t:"select",req:true,opts:optsCiclo},
     {k:"horas",l:"Horas semanales",t:"number",req:true,min:1,max:12,def:3},
     {k:"cred",l:"Créditos",t:"number",req:true,min:1,max:8,def:2}],
-  cols:[{h:"Código",v:r => mono(r.cod)},{h:"Unidad didáctica",v:r => esc(r.nombre)},{h:"Programa",v:r => prog(r.prog).cod},{h:"Ciclo",v:r => r.ciclo},{h:"Horas/sem",v:r => r.horas},{h:"Créditos",v:r => r.cred},{h:"Periodo",v:() => DB.cfg.periodo}],
+  cols:[{h:"Código",v:r => mono(r.cod)},{h:"Unidad didáctica",v:r => esc(r.nombre)},{h:"Programa",v:r => prog(r.prog).cod},{h:"Módulo",v:r => {const m=byId(DB.modulos,r.mod);return m?esc(m.cod):pill("Pendiente","p-warn")}},{h:"Ciclo",v:r => r.ciclo},{h:"Horas/sem",v:r => r.horas},{h:"Créditos",v:r => r.cred},{h:"Periodo",v:() => DB.cfg.periodo}],
+  check:v => v.mod && byId(DB.modulos,v.mod)?.prog!==v.prog ? {mod:"El módulo debe pertenecer al programa seleccionado."}:null,
   sort:(a,b) => a.prog - b.prog || a.ciclo.localeCompare(b.ciclo) || a.cod.localeCompare(b.cod),
   label:r => `${r.cod} ${r.nombre}`,
   refs:r => { const n = cnt(DB.sesiones,s => s.ud === r.id); return n ? `La unidad ${r.nombre} está programada en ${n} sesión(es) de horario.` : "" },
   afterDel:r => DB.docentes.forEach(d => d.uds = d.uds.filter(x => x !== r.id)) };
 
-ENT.docentes = { col:"docentes", one:"docente", title:"Carga docente", mod:"Horarios", permMod:"horarios", wide:true,
+ENT.docentes = { col:"docentes", one:"docente", title:"Carga docente", mod:"Horarios", permMod:"config", wide:true,
   fields:() => [
     {k:"per",l:"Docente (de la Plana docente)",t:"select",req:true,w:1,opts:() => HOST.docentes().map(p => [p.id, `${p.nom} · ${p.esp}`]),hint:"Los datos personales y la hoja de vida se mantienen en Plana docente."},
     {k:"uds",l:"Unidades didácticas que puede asumir",t:"multi",num:true,w:1,opts:() => DB.uds.map(u => [u.id, `${prog(u.prog).cod} · ${u.nombre}`])},
@@ -2669,7 +2716,7 @@ ENT.docentes = { col:"docentes", one:"docente", title:"Carga docente", mod:"Hora
   after:r => { syncDocentes() },
   refs:r => { const n = cnt(DB.sesiones,s => s.doc === r.id); return n ? `${r.nom} tiene ${n} sesión(es) asignadas en el horario. Reasígnelas antes de eliminar.` : "" } };
 
-ENT.ambientes = { col:"ambientes", one:"ambiente", title:"Ambientes académicos", mod:"Horarios", permMod:"horarios",
+ENT.ambientes = { col:"ambientes", one:"ambiente", title:"Ambientes académicos", mod:"Horarios", permMod:"config",
   fields:() => [
     {k:"cod",l:"Código",req:true,uniq:true,upper:true},
     {k:"tipo",l:"Tipo",t:"select",req:true,opts:() => [["Aula","Aula"],["Laboratorio","Laboratorio"],["Taller","Taller"]]},
@@ -2682,17 +2729,19 @@ ENT.ambientes = { col:"ambientes", one:"ambiente", title:"Ambientes académicos"
   label:r => r.cod,
   refs:r => { const n = cnt(DB.sesiones,s => s.amb === r.id); return n ? `El ambiente ${r.cod} está asignado en ${n} sesión(es).` : "" } };
 
-ENT.modulos = { col:"modulos", one:"módulo formativo", title:"Módulos formativos", mod:"Certificados", permMod:"certificados",
+ENT.modulos = { col:"modulos", one:"módulo formativo", title:"Módulos formativos", mod:"Certificados", permMod:"config",
   fields:() => [
     {k:"prog",l:"Programa de estudios",t:"select",req:true,num:true,opts:optsProg(true)},
     {k:"cod",l:"Código",req:true,upper:true,ph:"MF1"},
     {k:"nombre",l:"Nombre del módulo",req:true,w:1},
-    {k:"ciclos",l:"Ciclos asociados",req:true,ph:"I – II"}],
+    {k:"ciclos",l:"Ciclos asociados",req:true,ph:"I – II"},
+    {k:"horasTotal",l:"Horas totales de formación",t:"number",min:1,max:10000},
+    {k:"tipoHoras",l:"Tipo de horas",t:"select",opts:()=>[["Académicas","Académicas"],["Lectivas","Lectivas"]],def:"Académicas"}],
   check:(v,row) => DB.modulos.some(m => m.prog === v.prog && m.cod === v.cod && (!row || m.id !== row.id)) ? {cod:"Ese código ya existe en el programa."} : null,
   cols:[{h:"Programa",v:r => prog(r.prog).cod},{h:"Código",v:r => mono(r.cod)},{h:"Módulo formativo",v:r => esc(r.nombre)},{h:"Ciclos",v:r => r.ciclos},{h:"Certificados emitidos",v:r => cnt(DB.certs,c => c.mod === r.id)}],
   sort:(a,b) => a.prog - b.prog || a.cod.localeCompare(b.cod),
   label:r => `${prog(r.prog).cod}-${r.cod}`,
-  refs:r => { const n = cnt(DB.certs,c => c.mod === r.id); return n ? `Hay ${n} certificación(es) registradas para este módulo.` : "" } };
+  refs:r => { const n = cnt(DB.certs,c => c.mod === r.id)+cnt(DB.uds,u=>u.mod===r.id); return n ? `Hay ${n} certificación(es) registradas para este módulo.` : "" } };
 
 const optsEst = (filter) => () => DB.estudiantes.filter(filter || (() => true)).sort((a,b) => a.nom.localeCompare(b.nom)).map(e => [e.id, `${e.dni} · ${e.nom} (${prog(e.prog).cod})`]);
 ENT.estudiantes = { col:"estudiantes", one:"alumno", title:"Maestro de alumnos", mod:"Maestro de alumnos", permMod:"alumnos", wide:true,
@@ -2717,13 +2766,17 @@ ENT.certs = { col:"certs", one:"certificación modular", title:"Certificaciones 
     {k:"est",l:"Estudiante",t:"select",req:true,num:true,w:1,opts:optsEst()},
     {k:"mod",l:"Módulo certificado",t:"select",req:true,num:true,w:1,opts:() => DB.modulos.map(m => [m.id, `${prog(m.prog).cod}-${m.cod} · ${m.nombre}`])},
     {k:"fecha",l:"Fecha de certificación",t:"date",req:true,def:today},
+    {k:"institucion",l:"Institución emisora",def:()=>DB.cfg.nombre,w:1},
+    {k:"estadoDoc",l:"Estado del documento",t:"select",opts:()=>[["Válido","Válido"],["Anulado","Anulado"]],def:"Válido"},
+    {k:"horasDoc",l:"Horas consignadas en el documento",t:"number",min:1,max:10000},
+    {k:"tipoHoras",l:"Tipo de horas",t:"select",opts:()=>[["Académicas","Académicas"],["Lectivas","Lectivas"]],def:"Académicas"},
     {k:"num",l:"N.º de certificado",req:true,uniq:true,upper:true,def:() => `CM-${pad(DB.seq.cert+1).padStart(4,"0")}-${today().slice(0,4)}`}],
   check:(v,row) => { const e = est(v.est), m = byId(DB.modulos,v.mod); const er = {};
     if(m && e && m.prog !== e.prog) er.mod = `El módulo pertenece a ${prog(m.prog).cod} y el estudiante es de ${prog(e.prog).cod}.`;
-    if(DB.certs.some(c => c.est === v.est && c.mod === v.mod && (!row || c.id !== row.id))) er.mod = "El estudiante ya tiene registrado este módulo.";
+    if(v.estadoDoc!=="Anulado"&&DB.certs.some(c => c.estadoDoc!=="Anulado"&&c.est === v.est && c.mod === v.mod && (!row || c.id !== row.id))) er.mod = "El estudiante ya tiene registrado este módulo.";
     if(v.fecha > today()) er.fecha = "La fecha no puede ser futura."; return er },
   after:(r,isNew) => { if(isNew){ DB.seq.cert++; const u = HOST.users().find(x => x.vin === "est:"+r.est); if(u) notify("u:"+u.id, `Se registró tu certificación del módulo ${byId(DB.modulos,r.mod).cod}`, "certificados") } },
-  cols:[{h:"N.º certificado",v:r => mono(r.num)},{h:"Estudiante",v:r => esc(est(r.est).nom)},{h:"DNI",v:r => mono(est(r.est).dni)},{h:"Programa",v:r => prog(est(r.est).prog).cod},{h:"Módulo",v:r => { const m = byId(DB.modulos,r.mod) || {}; return `${esc(m.cod||"")} · ${esc(m.nombre||"")}` }},{h:"Fecha",v:r => fd(r.fecha)}],
+  cols:[{h:"N.º certificado",v:r => mono(r.num)},{h:"Estudiante",v:r => esc(est(r.est).nom)},{h:"DNI",v:r => mono(est(r.est).dni)},{h:"Programa",v:r => prog(est(r.est).prog).cod},{h:"Módulo",v:r => { const m = byId(DB.modulos,r.mod) || {}; return `${esc(m.cod||"")} · ${esc(m.nombre||"")}` }},{h:"Fecha",v:r => fd(r.fecha)},{h:"Estado",v:r=>estPill(r.estadoDoc||"Válido")}],
   sort:(a,b) => b.fecha.localeCompare(a.fecha),
   label:r => r.num };
 
@@ -2743,17 +2796,23 @@ ENT.titulos = { col:"titulos", one:"título", title:"Registro institucional de t
     {k:"culm",l:"Fecha de culminación",t:"date",req:true},
     {k:"tit",l:"Fecha de titulación",t:"date",req:true,def:today},
     {k:"cod",l:"Código institucional del título",req:true,uniq:true,upper:true},
+    {k:"institucion",l:"Institución emisora",def:()=>DB.cfg.nombre,w:1},
+    {k:"estadoDoc",l:"Estado del documento",t:"select",opts:()=>[["Válido","Válido"],["Anulado","Anulado"]],def:"Válido"},
+    {k:"denominacion",l:"Denominación del grado o título",w:1,hint:"Si se deja vacío se utiliza el título del programa."},
+    {k:"nivel",l:"Nivel educativo",def:"Superior tecnológico"},
+    {k:"pais",l:"País",def:"Perú"},
+    {k:"region",l:"Región",def:"Ica"},
     {k:"resol",l:"Resolución directoral",req:true,w:1,ph:"R.D. N.º 000-2026-INSTITUTO"}],
-  check:(v,row) => { const er = {}; if(v.culm && v.tit && v.tit < v.culm) er.tit = "Debe ser posterior a la fecha de culminación."; if(DB.titulos.some(t => t.est === v.est && (!row || t.id !== row.id))) er.est = "Este egresado ya tiene un título registrado."; return er },
+  check:(v,row) => { const er = {}; if(v.culm && v.tit && v.tit < v.culm) er.tit = "Debe ser posterior a la fecha de culminación."; if(v.estadoDoc!=="Anulado"&&DB.titulos.some(t => t.estadoDoc!=="Anulado"&&t.est === v.est && (!row || t.id !== row.id))) er.est = "Este egresado ya tiene un título registrado."; return er },
   after:r => { const e = est(r.est); if(e.id) e.estado = "Titulado"; const u = HOST.users().find(x => x.vin === "est:"+r.est); if(u) notify("u:"+u.id,"Tu título fue registrado en la intranet institucional","titulos") },
-  cols:[{h:"Código",v:r => mono(r.cod)},{h:"Titulado",v:r => esc(est(r.est).nom)},{h:"DNI",v:r => mono(est(r.est).dni)},{h:"Programa",v:r => prog(est(r.est).prog).cod},{h:"Culminación",v:r => fd(r.culm)},{h:"Titulación",v:r => fd(r.tit)},{h:"Resolución",v:r => esc(r.resol)}],
+  cols:[{h:"Estado",v:r=>estPill(r.estadoDoc||"Válido")},{h:"Código",v:r => mono(r.cod)},{h:"Titulado",v:r => esc(est(r.est).nom)},{h:"DNI",v:r => mono(est(r.est).dni)},{h:"Programa",v:r => prog(est(r.est).prog).cod},{h:"Culminación",v:r => fd(r.culm)},{h:"Titulación",v:r => fd(r.tit)},{h:"Resolución",v:r => esc(r.resol)}],
   sort:(a,b) => b.tit.localeCompare(a.tit),
   label:r => r.cod };
 
-ENT.areas = { col:"areas", one:"área", title:"Áreas o unidades receptoras", mod:"Mesa de partes", permMod:"mesa",
+ENT.areas = { col:"areas", one:"área", title:"Áreas o unidades receptoras", mod:"Mesa de partes", permMod:"config",
   fields:() => [
     {k:"cod",l:"Código",req:true,uniq:true,upper:true},
-    {k:"nivel",l:"Nivel / clasificación",t:"select",req:true,opts:() => ["Mesa de Partes","Dirección","Órganos y comités","Áreas","Unidades","Coordinaciones de programas de estudio"].map(x => [x,x])},
+    {k:"nivel",l:"Nivel / clasificación",t:"select",req:true,opts:() => HOST.areaLevels(DB.areas).map(x => [x,x])},
     {k:"nombre",l:"Nombre del área",req:true,w:1},
     {k:"resp",l:"Responsable asignado (cargo y/o nombre)",req:true},
     {k:"correo",l:"Correo institucional",t:"email",req:true,pat:PAT_MAIL},
@@ -2762,7 +2821,7 @@ ENT.areas = { col:"areas", one:"área", title:"Áreas o unidades receptoras", mo
   label:r => r.cod,
   refs:r => { const n = cnt(DB.tramites,t => t.area === r.cod) + cnt(HOST.exps(),e => e.area === r.cod); return n ? `El área ${r.nombre} tiene ${n} trámite(s) o expediente(s) asociados. Puede desactivarla.` : "" } };
 
-ENT.tramites = { col:"tramites", one:"tipo de trámite", title:"Tipos de trámite", mod:"Mesa de partes", permMod:"mesa",
+ENT.tramites = { col:"tramites", one:"tipo de trámite", title:"Tipos de trámite", mod:"Mesa de partes", permMod:"config",
   fields:() => [
     {k:"nombre",l:"Nombre del trámite",req:true,uniq:true,w:1},
     {k:"area",l:"Área responsable",t:"select",req:true,opts:() => DB.areas.filter(a => a.activo).map(a => [a.cod, a.nombre])},
@@ -3144,10 +3203,10 @@ function horarioXLS(title, ss, turno, byDoc){
 }
 V.horarios = () => {
   const r = R(), L = lvl("horarios");
-  const intro = head("1.1 · Gestión académica","Programación de horarios","Configuración base, programación por sección sobre la grilla, validación automática de cruces y publicación para estudiantes y docentes.");
+  const intro = head("1.1 · Gestión académica","Programación de horarios","Programación por sección, validación de cruces y publicación. Los maestros se administran en Configuración académica general.");
   if(L >= 2 || r === "dir"){
     const val = validar(), nb = cnt(val, v => v.t === "bad");
-    const T = tabs("horarios", [["prog","Programación"],["valid","Validaciones", val.length || ""],["docente","Vista por docente"],["ambiente","Vista por ambiente"],...(L >= 2 ? [["config","Configuración"]] : [])]);
+    const T = tabs("horarios", [["prog","Programación"],["valid","Validaciones", val.length || ""],["docente","Vista por docente"],["ambiente","Vista por ambiente"]]);
     let body = "";
     if(T.cur === "prog"){
       const g = grupoSel(), ss = sesGrupo(g), k = gkey(g.p,g.c,g.s,g.t), pub = DB.publicados[k];
@@ -3181,10 +3240,6 @@ V.horarios = () => {
       const ss = a ? DB.sesiones.filter(s => s.amb === a.id && s.per === DB.cfg.periodo) : [];
       body = `<section class="panel"><div class="f"><div class="fld"><label for="hamb">Ambiente</label><select id="hamb" data-chg="hamb">${DB.ambientes.map(x => `<option value="${x.id}" ${x.id === aId ? "selected" : ""}>${x.cod} · ${x.tipo}</option>`).join("")}</select></div></div>
         ${a ? `<div class="panel-h"><div><h2>${esc(a.cod)} · ${esc(a.tipo)}</h2><span class="note">${esc(a.ubic)} · Capacidad ${a.cap} · ${ss.length} sesiones</span></div></div>${shiftGrids(ss, {byDoc:true, showErr:true})}` : empty("No hay ambientes registrados.")}</section>`;
-    }
-    if(T.cur === "config"){
-      const sub = S.tab.hconf || "programas";
-      body = `<div class="pubtabs">${[["uds","Unidades didácticas"],["docentes","Carga docente"],["ambientes","Ambientes"],["bloques","Bloques y receso"]].map(([k,l]) => `<button class="${k === sub ? "on" : ""}" data-tab="hconf:${k}">${l}</button>`).join("")}</div>` + (sub === "bloques" ? bloquesView() : crud(sub));
     }
     return intro + T.html + body;
   }
@@ -3229,7 +3284,7 @@ function consultaCert(pub){
     ${q ? (res.length === 1 ? fichaEst(res[0], {pub}) : res.length ? `<section class="panel"><h2>${res.length} coincidencias</h2><div class="tw"><table><tbody>${res.map(e => `<tr><td>${mono(e.dni)}</td><td>${esc(e.nom)}</td><td>${prog(e.prog).cod}</td><td>${estPill(e.estado)}</td><td class="act"><button class="btn sec sm" data-act="pickEst" data-id="${e.dni}">Ver</button></td></tr>`).join("")}</tbody></table></div></section>` : `<div class="alert warn">No se encontró ningún estudiante con “${esc(q)}”.</div>`) : ""}`;
 }
 function docCert(e){
-  const cs = DB.certs.filter(c => c.est === e.id); if(!cs.length){ toast("El estudiante no tiene certificaciones registradas."); return }
+  const cs = DB.certs.filter(c => c.est === e.id && c.estadoDoc!=="Anulado"); if(!cs.length){ toast("El estudiante no tiene certificaciones registradas."); return }
   const d = emitDoc("cert", e.id, e.nom); if(!d)return;
   const rows = cs.map(c => { const m = byId(DB.modulos,c.mod); return [`${m.cod} · ${m.nombre}`, c.num, fd(c.fecha)] });
   openModal({title:"Constancia de certificación modular", wide:true, body:`<div class="paper">${paperHead()}<h2>CONSTANCIA DE CERTIFICACIÓN MODULAR</h2>
@@ -3239,7 +3294,7 @@ function docCert(e){
     foot:`<button type="button" class="btn" data-act="pdfCert" data-id="${e.id}">Descargar PDF</button>`});
 }
 function pdfCert(id){
-  if(!libsOk("pdf")) return; const e = est(id), d = emitDoc("cert", e.id, e.nom), cs = DB.certs.filter(c => c.est === e.id); if(!d)return;
+  if(!libsOk("pdf")) return; const e = est(id), d = emitDoc("cert", e.id, e.nom), cs = DB.certs.filter(c => c.est === e.id && c.estadoDoc!=="Anulado"); if(!d)return;
   const doc = pdfNew(); let y = pdfHeader(doc, "CONSTANCIA DE CERTIFICACIÓN MODULAR");
   doc.setFontSize(10.5); doc.setTextColor(30); doc.setFont("helvetica","normal");
   const t = doc.splitTextToSize(`La Secretaría Académica del ${DB.cfg.nombre} hace constar que ${e.nom}, identificado(a) con DNI N.º ${e.dni}, estudiante del programa de estudios ${prog(e.prog).nombre}, registra las siguientes certificaciones modulares:`, 182);
@@ -3252,13 +3307,12 @@ function pdfCert(id){
 }
 V.certificados = () => {
   const L = lvl("certificados"), r = R();
-  const intro = head("1.2 · Gestión académica","Constancias y certificados","Registro progresivo de estudiantes, módulos formativos, certificaciones modulares e historial académico, con consulta por DNI o nombres y constancias verificables.");
+  const intro = head("1.2 · Gestión académica","Certificación modular","Registro de certificaciones e historial académico con maestros compartidos y documentos verificables.");
   if(L >= 2){
-    const T = tabs("certificados", [["consulta","Consulta"],["certs","Certificaciones", DB.certs.length],["modulos","Módulos formativos"],["notas","Historial académico"],["reportes","Reportes"]]);
+    const T = tabs("certificados", [["consulta","Consulta"],["certs","Certificaciones", DB.certs.length],["notas","Historial académico"],["reportes","Reportes"]]);
     let body = "";
     if(T.cur === "consulta") body = consultaCert(false);
     if(T.cur === "certs") body = crud("certs", {addLabel:"Registrar certificación", sub:`Los estudiantes se toman del <a href="#/admin/ix-alumnos">Maestro de alumnos</a>.`});
-    if(T.cur === "modulos") body = crud("modulos");
     if(T.cur === "notas") body = crud("notas", {addLabel:"Registrar nota"});
     if(T.cur === "reportes"){
       const year = today().slice(0,4);
@@ -3295,6 +3349,7 @@ function fichaTitulo(t, pub){
   <div class="btnrow"><button class="btn sm" data-act="docTit" data-id="${t.id}">Reporte de validación</button></div></section>`;
 }
 function docTit(id){
+  if(byId(DB.titulos,id)?.estadoDoc==="Anulado"){toast("El título está anulado.");return;}
   const t = byId(DB.titulos,id), e = est(t.est), d = emitDoc("titulo", t.id, e.nom); if(!d)return;
   openModal({title:"Reporte de validación de título", wide:true, body:`<div class="paper">${paperHead()}<h2>REPORTE DE VALIDACIÓN DE TÍTULO</h2>
     <p>El ${esc(DB.cfg.nombre)} certifica que la persona indicada cuenta con registro de título emitido por la institución:</p>
@@ -3302,6 +3357,7 @@ function docTit(id){
     foot:`<button type="button" class="btn" data-act="pdfTit" data-id="${t.id}">Descargar PDF</button>`});
 }
 function pdfTit(id){
+  if(byId(DB.titulos,id)?.estadoDoc==="Anulado"){toast("El título está anulado.");return;}
   if(!libsOk("pdf")) return; const t = byId(DB.titulos,id), e = est(t.est), d = emitDoc("titulo", t.id, e.nom); if(!d)return;
   const doc = pdfNew(); let y = pdfHeader(doc, "REPORTE DE VALIDACIÓN DE TÍTULO");
   doc.setFontSize(10.5); doc.setTextColor(30); doc.setFont("helvetica","normal");
@@ -3592,6 +3648,7 @@ function registroEmpresa(){
   <div class="alert info" style="margin:10px 0"><b>Criterios de validación</b><ul style="margin:6px 0 0;padding-left:18px">${crit.criterios.map(c => `<li>${esc(c)}</li>`).join("")}</ul><span class="note">Responsable de la aprobación: ${esc(crit.responsable)}${crit.correo ? ` · ${esc(crit.correo)}` : ""}</span></div>
   <form class="f" data-form="regEmp" novalidate>${EMP_REG_FIELDS().map(f => fieldHtml(f,"")).join("")}${fieldHtml({k:"pass",l:"Contraseña para la intranet",t:"password",req:true,pat:[/^.{12,}$/,"Mínimo 12 caracteres."]},"")}
   <div class="fld wide"><label style="display:flex;gap:8px;align-items:flex-start;font-weight:400"><input type="checkbox" id="empDecl"> <span>Declaro bajo juramento que la empresa se encuentra con RUC <b>activo y habido</b>, que los datos registrados son verídicos y que las ofertas que publique cumplirán la normativa laboral vigente.</span></label><span class="err" id="empDeclErr"></span></div>
+  <div class="fld wide mpv-progress" data-company-progress role="status" hidden><span class="mpv-spinner" aria-hidden="true"></span><span>Registrando empresa, espera un momento. No cierres la página ni repitas el envío.</span></div>
   <div class="fld"><button class="btn" type="submit">Crear cuenta de empresa</button></div></form></section>`;
 }
 const rucValido = r => { r = String(r || ""); if(!/^(10|15|17|20)\d{9}$/.test(r)) return false; const w = [5,4,3,2,7,6,5,4,3,2]; const s = w.reduce((a, x, i) => a + x * +r[i], 0); let d = 11 - s % 11; if(d === 10) d = 0; if(d === 11) d = 1; return d === +r[10] };
@@ -3725,10 +3782,13 @@ V.bitacora = () => {
 
 /* ---------- configuración ---------- */
 V.config = () => {
-  const T = tabs("config", [["periodo","Periodo académico"],["documentos","Constancias y reportes"]]);
-  const intro = head("Configuración","Configuración académica","Periodo académico vigente y formato de las constancias, horarios y reportes que emite el sistema.") + T.html;
+  const T = tabs("config", [["programas","Programas de estudios"],["modulos","Módulos formativos"],["uds","Unidades didácticas"],["docentes","Asignaciones docentes"],["ambientes","Ambientes"],["bloques","Turnos, bloques y recesos"],["periodo","Periodo académico"],["documentos","Formatos documentales"],["areas","Áreas receptoras"],["tramites","Tipos de trámite"]]);
+  const intro = head("Configuración compartida","Configuración académica general","Programas → Módulos formativos → Unidades didácticas. Horarios y los módulos documentales utilizan estos maestros únicos.") + T.html;
+  if(T.cur === "programas") return intro + (HOST.programsView ? HOST.programsView() : "");
+  if(["modulos","uds","docentes","ambientes","areas","tramites"].includes(T.cur)) return intro + crud(T.cur);
+  if(T.cur === "bloques") return intro + bloquesView();
   if(T.cur === "documentos") return intro + docsConfig();
-  return intro + `<section class="panel"><h2>Periodo académico vigente</h2><p class="note">Los datos institucionales (nombre, dirección, director) se toman de la Configuración del portal.</p><form class="f" data-form="cfg" novalidate>${fieldHtml({k:"periodo",l:"Periodo académico vigente",req:true,pat:PAT_PER,hint:"Los horarios se programan y validan sobre este periodo."}, DB.cfg.periodo)}<div class="fld"><button class="btn" type="submit">Guardar</button></div></form></section>`;
+  return intro + `<section class="panel"><h2>Periodo académico vigente</h2><form class="f" data-form="cfg" novalidate>${fieldHtml({k:"periodo",l:"Periodo académico vigente",req:true,pat:PAT_PER}, DB.cfg.periodo)}<div class="fld"><button class="btn" type="submit">Guardar</button></div></form></section>`;
 };
 
 function apariencia(){
@@ -3788,7 +3848,7 @@ function applyBloques(t, nc){
   DB.cfg.bloques = Object.assign({}, DB.cfg.bloques || {}, {[t]: nc}); rebuildSlots(); return null;
 }
 function setBloq(t, patch, msg){
-  if(lvl("horarios") < 2) return;
+  if(lvl("config") < 2) return;
   const nc = normBloq(Object.assign(bloqCfg(t), patch)), e = bloqErr(t, nc);
   if(e){ toast(e); render(); return }
   const lost = applyBloques(t, nc);
@@ -3908,7 +3968,7 @@ function logout(){ HOST.logout() }
 const ACTIONS = {
   mkAcc(id){ if(lvl("alumnos") < 2) return; const e = byId(DB.estudiantes, +id); if(!e) return; const r = HOST.createStudentAccount({id:e.id, dni:e.dni, nom:e.nom, estado:e.estado, correo:e.correo || ""});
     if(r.error) return toast(r.error); log("Crear acceso","Maestro de alumnos",`${e.dni} ${e.nom}`); render();
-    openModal({title:"Acceso creado", body:`<p>Se creó la cuenta de <b>${esc(e.nom)}</b> como <b>${esc(r.rolLabel)}</b>.</p><dl class="dl"><dt>Usuario</dt><dd class="mono">${esc(r.usuario)}</dd><dt>Contraseña temporal</dt><dd class="mono" style="font-size:1.1rem">${esc(r.pass)}</dd></dl><p class="note">Entréguela al alumno. Ingresa en “Ingresar a la intranet” y verá su ficha, horario, certificaciones, bolsa laboral y trámites.</p>`}) },
+    openModal({title:"Acceso creado", body:`<p>Se creó la cuenta de <b>${esc(e.nom)}</b> como <b>${esc(r.rolLabel)}</b>.</p><dl class="dl"><dt>Usuario</dt><dd class="mono">${esc(r.usuario)}</dd><dt>Contraseña temporal</dt><dd class="mono" style="font-size:1.1rem">${esc(r.pass)}</dd></dl><p class="note">Entréguela al alumno: es temporal y deberá cambiarla en su primer ingreso. Luego verá su ficha, horario, certificaciones, bolsa laboral y trámites.</p>`}) },
   uRol(id){ S.ui.uRol = id; render() },
   uClear(){ S.ui.uRol = ""; S.ui.uEst = ""; S.q.usuarios = ""; render() },
   uVerRol(id){ S.ui.uRolSel = id; S.tab.usuarios = "permisos"; render(); window.scrollTo(0,0) },
@@ -3924,7 +3984,7 @@ const ACTIONS = {
     y = pdfKV(doc, y + 4, [["Titulado(a)","Nombre de ejemplo"],["DNI","00000000"],["Programa de estudios",(DB.programas[0]||{}).nombre || "—"]]);
     y = pdfTable(doc, y + 4, ["Columna 1","Columna 2","Columna 3"], [["Dato","Dato","Dato"],["Dato","Dato","Dato"]]);
     pdfVerify(doc, d, y + 10); pdfFooter(doc); saveFile(`documento_ejemplo_${fileStamp()}.pdf`, doc.output("blob")) },
-  bloqReset(){ confirmBox("Volver al horario original","Mañana: de 08:00 a 14:15 con receso de 11:00 a 11:15. Tarde: de 14:30 a 19:45 con receso de 17:30 a 17:45. Las clases programadas se moverán a esas horas.","Volver al original",() => { const old = JSON.parse(JSON.stringify(DB.cfg.bloques || {})); const sv = DB.sesiones.map(x => [x.ini, x.fin]); const lost = ["Tarde","Mañana"].map(t => applyBloques(t, BLOQ_DEF[t])).filter(Boolean); if(lost.length){ DB.sesiones.forEach((x,i) => { x.ini = sv[i][0]; x.fin = sv[i][1] }); DB.cfg.bloques = old; rebuildSlots(); toast("Hay clases en horas que no existen en el horario original. Muévalas primero."); return } DB.cfg.bloques = {}; rebuildSlots(); log("Configurar horario","Horarios","Horario original restablecido"); if(!save())return false; toast("Se restableció el horario original."); render() }) },
+  bloqReset(){ if(lvl("config")<2)return;confirmBox("Volver al horario original","Mañana: de 08:00 a 14:15 con receso de 11:00 a 11:15. Tarde: de 14:30 a 19:45 con receso de 17:30 a 17:45. Las clases programadas se moverán a esas horas.","Volver al original",() => { const old = JSON.parse(JSON.stringify(DB.cfg.bloques || {})); const sv = DB.sesiones.map(x => [x.ini, x.fin]); const lost = ["Tarde","Mañana"].map(t => applyBloques(t, BLOQ_DEF[t])).filter(Boolean); if(lost.length){ DB.sesiones.forEach((x,i) => { x.ini = sv[i][0]; x.fin = sv[i][1] }); DB.cfg.bloques = old; rebuildSlots(); toast("Hay clases en horas que no existen en el horario original. Muévalas primero."); return } DB.cfg.bloques = {}; rebuildSlots(); log("Configurar horario","Horarios","Horario original restablecido"); if(!save())return false; toast("Se restableció el horario original."); render() }) },
   bqAddRec(id){ const [t,h] = id.split("|"); const c = bloqCfg(t); setBloq(t, {recs:[...c.recs, {after:+h, min:15}]}, `receso de 15 min después de la ${h}.ª hora`) },
   bqDelRec(id){ const [t,h] = id.split("|"); const c = bloqCfg(t); setBloq(t, {recs:c.recs.filter(r => r.after !== +h)}, `se quitó el receso después de la ${h}.ª hora`) },
   bqAddHora(t){ const c = bloqCfg(t); if(c.n >= 10) return toast("Máximo 10 horas de clase por turno."); setBloq(t, {n:c.n + 1}, `${c.n + 1} horas de clase`) },
@@ -4081,21 +4141,25 @@ const FORMS = {
     HOST.exps().unshift(x); notify("r:adm",`Expediente ${x.num} recibido: ${tram(x.tramite).nombre}`,"mesa"); notify("r:admin",`Expediente ${x.num} recibido`,"mesa");
     log("Registrar","Mesa de partes",x.num); if(!save())return false; render(); docCargo(x.id); toast(`Documento recibido: ${x.num}. Guarde su código de seguimiento.`);
   },
-  regEmp(form){
+  async regEmp(form){
+    if(form.dataset.sending)return;
     const fields=[...EMP_REG_FIELDS(),{k:"pass",req:true,pat:[/^.{12,}$/,"Mínimo 12 caracteres."]}];
     const {vals,errs}=readFields(fields,form);
     if(vals.ruc&&!errs.ruc&&!rucValido(vals.ruc))errs.ruc="El RUC no es válido.";
     const decl=form.querySelector("#empDecl");if(!decl?.checked)errs.ruc="Debes aceptar la declaración jurada.";
     if(!showErrs(form,errs))return;
-    try{const result=HOST.registerCompany({...vals,declaration:decl.checked});DB.empresas.push(result.company);render();
+    form.dataset.sending='true';const controls=[...form.elements,...document.querySelectorAll('.pz-mt [data-tab]')].map(el=>[el,el.disabled]);controls.forEach(([el])=>el.disabled=true);const progress=form.querySelector('[data-company-progress]');if(progress)progress.hidden=false;const button=form.querySelector('[type=submit]');const original=button?.textContent;if(button){button.disabled=true;button.textContent='Registrando empresa, espera un momento…';}
+    const preventLeave=event=>{event.preventDefault();event.returnValue='';};window.addEventListener('beforeunload',preventLeave);portalSubmissionStatus('Registrando empresa. Espera un momento y no cierres la página.');
+    try{const result=await HOST.registerCompany({...vals,declaration:decl.checked});DB.empresas.push(result.company);render();portalSubmissionStatus('Empresa registrada correctamente.');
       openModal({title:"Empresa registrada",body:`<div class="alert ok">${esc(result.company.nom)} quedó pendiente de validación institucional.</div><p>Tu usuario es <b>${esc(result.username)}</b>. Entra con la contraseña que acabas de elegir.</p>`,foot:'<a class="btn" href="#/admin">Ingresar a la intranet</a>'});
-    }catch(error){toast(error.message);}
+    }catch(error){toast(error.message);portalSubmissionStatus(error.message);}finally{window.removeEventListener('beforeunload',preventLeave);delete form.dataset.sending;controls.forEach(([el,disabled])=>el.disabled=disabled);if(progress)progress.hidden=true;if(button)button.textContent=original;}
   },
   empSelf(form){
     const e = myEmp(), fields = ENT.empresas.fields().filter(f => f.k !== "validada" && f.k !== "ruc"), {vals, errs} = readFields(fields, form);
     if(!showErrs(form, errs)) return; Object.assign(e, vals); S.user.nom = e.nom; log("Editar","Bolsa laboral",`Empresa ${e.nom}`); if(!save())return false; toast("Datos de la empresa actualizados."); render();
   },
   cfg(form){
+    if(lvl("config")<2)return;
     const fields = [{k:"periodo",req:true,pat:PAT_PER}];
     const {vals, errs} = readFields(fields, form); if(!showErrs(form, errs)) return;
     const chg = vals.periodo !== DB.cfg.periodo; Object.assign(DB.cfg, vals); log("Editar","Configuración","Datos institucionales"); if(!save())return false;
@@ -4652,7 +4716,7 @@ const SESSION_IDLE_MIN=30;let portalActivityAt=Date.now();
 function touchSession(){portalActivityAt=Date.now();}
 function sessionExpired(){return Date.now()-portalActivityAt>SESSION_IDLE_MIN*60000;}
 const role = () => ROLES[(currentUser() || {}).rol] || {};
-const can = mod => { const r = role(); return !!(r.mods && r.mods.includes(mod)); };
+const can = mod => { const r = role(); return window.PORTAL_BOOTSTRAP.scope.modules.includes(mod) && !!(r.mods && r.mods.includes(mod)); };
 const canFlag = f => !!role()[f];
 function audit(accion, entidad, registro = '', detalle = '') {
   const u = currentUser();
@@ -5008,7 +5072,7 @@ R('nosotros/plana-jerarquica', path => {
    ${d ? `<section class="director" aria-label="Dirección General"><img src="${img(d.p.foto)}" alt="Fotografía de ${esc(fullName(d.p))}"><div class="msg"><h2 style="color:#fff;font-size:18px">Mensaje de la Dirección General</h2><blockquote>“${esc(pg0.mensaje)}”</blockquote><strong>${esc(fullName(d.p))}</strong><span>${esc(d.j.cargo)}</span><p style="margin-top:8px"><a href="mailto:${esc(d.p.correo)}" style="color:#cfe0ff">${esc(d.p.correo)}</a></p></div></section>` : ''}
    ${others.length ? `<div class="collage">${others.map(({ j, p }) => `<figure><img src="${img(p.foto)}" alt="Fotografía de ${esc(fullName(p))}" loading="lazy"><figcaption><strong>${esc(fullName(p))}</strong><small>${esc(j.cargo)}</small><small><a href="mailto:${esc(p.correo)}">${esc(p.correo)}</a></small></figcaption></figure>`).join('')}</div>` : emptyMsg('integrantes')}
    ${coords.length ? `<h2>Coordinadores de programas de estudio</h2><div class="collage">${coords.map(({ pp, p }) => `<figure><img src="${img(p.foto)}" alt="Fotografía de ${esc(fullName(p))}" loading="lazy"><figcaption><strong>${esc(fullName(p))}</strong><small>Coordinador(a) de ${esc(pp.nombre)}</small></figcaption></figure>`).join('')}</div>` : ''}`;
-  return shell(path, { title: 'Plana Jerárquica', desc: stripTags(pg0.contenido), crumbs: [['Nosotros', '#/nosotros/presentacion'], ['Plana Jerárquica']], banner: { title: 'Nosotros', text: 'Conoce nuestra identidad, historia y el compromiso con la formación técnica.' }, side: nosotrosSide('plana-jerarquica') + sidePromo('Trabajo en equipo para una mejor educación técnica'), body });
+  return shell(path, { title: 'Plana Jerárquica', desc: stripTags(pg0.contenido), crumbs: [['Nosotros', '#/nosotros/presentacion'], ['Plana Jerárquica']], banner: { title: 'Directorio profesional', text: 'Perfiles de la comunidad académica de Palpa.' }, side: nosotrosSide('plana-jerarquica') + sidePromo('Trabajo en equipo para una mejor educación técnica'), body });
 });
 const CATS = () => progs().map(p => ({ id: p.id, label: p.nombre, icon: p.icono })).concat([{ id: 'emp', label: 'Empleabilidad', icon: 'briefcase' }]);
 const docentesDe = cat => sortO(P('personas').filter(p => p.tipo === 'Docente' && isPub(p) && (cat === 'emp' ? p.empleabilidad : (p.programas || []).includes(cat))));
@@ -5020,7 +5084,7 @@ R('nosotros/plana-docente', (path, q) => {
    <div class="cat-tabs" role="group" aria-label="Categorías de docentes">${cats.map(c => `<button data-cat="${c.id}" aria-pressed="${c.id === sel.id}">${ic(c.icon)}<span>${esc(c.label)}</span></button>`).join('')}</div>
    <h2 style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">${esc(sel.label)} <span class="badge">${ds.length} docente(s)</span></h2>
    ${ds.length ? `<div class="grid g4">${ds.map(d => `<article class="card tcard"><img src="${img(d.foto)}" alt="Fotografía de ${esc(fullName(d))}" loading="lazy"><div class="cb"><strong>${esc(fullName(d))}</strong><small>${esc(d.especialidad)}</small><span class="badge ${d.condicion === 'Nombrado' ? 'ok' : 'gray'}" style="align-self:center">Docente ${esc(d.condicion.toLowerCase())}</span><button class="btn sm sec" data-prof="${d.id}">Ver perfil</button></div></article>`).join('')}</div>` : emptyMsg('docentes en esta categoría')}`;
-  const html = shell(path, { title: 'Plana Docente' + (sel ? ' - ' + sel.label : ''), desc: stripTags(pg0.contenido), crumbs: [['Nosotros', '#/nosotros/presentacion'], ['Plana Docente']], banner: { title: 'Nosotros', text: 'Conoce nuestra identidad, historia y el compromiso con la formación técnica.' }, side: nosotrosSide('plana-docente') + sidePromo('Docentes que inspiran el talento del futuro', 'La educación no cambia el mundo, cambia a las personas que van a cambiar el mundo. — Paulo Freire'), body });
+  const html = shell(path, { title: 'Plana Docente' + (sel ? ' - ' + sel.label : ''), desc: stripTags(pg0.contenido), crumbs: [['Nosotros', '#/nosotros/presentacion'], ['Plana Docente']], banner: { title: 'Directorio profesional', text: 'Perfiles de la comunidad académica de Palpa.' }, side: nosotrosSide('plana-docente') + sidePromo('Docentes que inspiran el talento del futuro', 'La educación no cambia el mundo, cambia a las personas que van a cambiar el mundo. — Paulo Freire'), body });
   return { html, after: () => { $$('[data-cat]').forEach(b => b.onclick = () => go('#/nosotros/plana-docente?p=' + b.dataset.cat)); $$('[data-prof]').forEach(b => b.onclick = () => teacherModal(b.dataset.prof, sel.id)); } };
 });
 function teacherModal(id, progId) {
@@ -5043,7 +5107,7 @@ R('nosotros/campus-e-informes', (path, q) => {
    <iframe class="map" title="Mapa de ubicación de ${esc(i.nombreCorto)}" loading="lazy" src="https://maps.google.com/maps?q=${locationQuery}&output=embed"></iframe></section>
    ${locs.length > 1 ? `<h2>Locales</h2><div class="grid g2">${locs.map(l => `<article class="card"><img src="${img(l.foto)}" alt="" style="aspect-ratio:16/9;object-fit:cover;border-radius:10px 10px 0 0"><div class="cb"><h3>${esc(l.nombre)}</h3><p>${esc(l.direccion)}<br>${esc(l.telefono)} · ${esc(l.correo)}<br>${esc(l.horario)}</p></div></article>`).join('')}</div>` : ''}
    <section style="margin-top:22px"><h2>${ic('mail').replace('<svg', '<svg style="width:22px;height:22px;stroke:var(--link);fill:none;stroke-width:2;vertical-align:-4px"')} Contáctanos</h2><p>Completa el formulario y te responderemos a la brevedad.</p>${contactForm(q.get('programa'))}</section>`;
-  const html = shell(path, { title: 'Campus e Informes', desc: stripTags(pg0.contenido), crumbs: [['Nosotros', '#/nosotros/presentacion'], ['Campus e Informes']], banner: { title: 'Nosotros', text: 'Conoce nuestra identidad, historia y el compromiso con la formación técnica.' }, side: nosotrosSide('campus-e-informes') + `<figure class="side-box" style="margin:0 0 18px"><img src="${img(pg0.imagen || L.foto)}" alt="Campus institucional" style="aspect-ratio:4/3;object-fit:cover"><figcaption class="pad"><strong>Un campus para grandes oportunidades</strong></figcaption></figure><section class="side-box"><h2>Horarios de atención</h2><div class="pad"><p style="margin:0 0 6px"><b>${esc(i.horario)}</b></p><p style="margin:0">${esc(i.horarioSab || '')}</p></div></section>`, body });
+  const html = shell(path, { title: 'Campus e Informes', desc: stripTags(pg0.contenido), crumbs: [['Nosotros', '#/nosotros/presentacion'], ['Campus e Informes']], banner: { title: 'Directorio profesional', text: 'Perfiles de la comunidad académica de Palpa.' }, side: nosotrosSide('campus-e-informes') + `<figure class="side-box" style="margin:0 0 18px"><img src="${img(pg0.imagen || L.foto)}" alt="Campus institucional" style="aspect-ratio:4/3;object-fit:cover"><figcaption class="pad"><strong>Un campus para grandes oportunidades</strong></figcaption></figure><section class="side-box"><h2>Horarios de atención</h2><div class="pad"><p style="margin:0 0 6px"><b>${esc(i.horario)}</b></p><p style="margin:0">${esc(i.horarioSab || '')}</p></div></section>`, body });
   return { html, after: bindContactForm };
 });
 function contactForm(pre = '') {
@@ -5832,7 +5896,7 @@ function crudForm(spec, id) {
   const isNew = id === 'nuevo';
   const base = isNew ? (ADM.work && ADM.workKey === spec.key && ADM.workNew ? ADM.work : Object.assign({ id: uid(), estado: spec.states ? spec.states[0] : 'Borrador' }, spec.defaults ? spec.defaults() : {})) : byId(spec.coll, id);
   if (!base) return { html: admHead('Registro no encontrado', '', '', spec.icon) + `<a class="btn" href="#/admin/${spec.key}">Volver</a>` };
-  if (!isNew && spec.scope && !spec.scope(base)) { audit('Acceso denegado', spec.title, spec.label(base), 'Registro fuera de su ámbito'); saveDB(); return { html: admHead('Sin permiso', 'Este registro no pertenece a su ámbito de trabajo. El intento quedó registrado en la auditoría.', `<a class="btn" href="#/admin/${spec.key}">Volver al listado</a>`, 'lock') }; }
+  if (!isNew && spec.scope && !spec.scope(base)) { audit('Acceso denegado', spec.title, spec.label(base), 'Registro fuera de su ámbito'); return { html: admHead('Sin permiso', 'Este registro no pertenece a su ámbito de trabajo. El intento quedó registrado en la auditoría.', `<a class="btn" href="#/admin/${spec.key}">Volver al listado</a>`, 'lock') }; }
   if (!isNew && spec.canEdit && !spec.canEdit(base)) return { html: admHead('Sin permiso', 'No tiene permiso para editar este registro.', '', 'lock') };
   const work = ADM.work && ADM.work.id === base.id && ADM.workKey === spec.key ? ADM.work : JSON.parse(JSON.stringify(base));
   ADM.work = work; ADM.workKey = spec.key; ADM.workNew = isNew;
@@ -6192,7 +6256,7 @@ SPECS.slides = {
 const portadaTabs = a => tabsBar([['s', 'Carrusel', '#/admin/slides'], ['b', 'Bloques, accesos y cifras', '#/admin/portada'], ['p', 'Ventana emergente', '#/admin/popup']], a);
 SPECS.usuarios = {
   key: 'usuarios', mod: 'usuarios', coll: 'usuarios', title: 'Usuarios y roles', singular: 'usuario', icon: 'key', states: ['Activo', 'Inactivo'], pubState: 'Activo', label: r => r.usuario, softDelete: false,
-  cols: [{ l: 'Usuario', f: r => `<b>${esc(r.usuario)}</b>` }, { l: 'Nombre', f: r => esc(r.nombre) }, { l: 'Rol', f: r => esc(ROLES[r.rol]?.label) + (r.programaId ? ` <small>(${esc(r.programaId.toUpperCase())})</small>` : '') }, { l: 'Último acceso', f: r => r.ultimoAcceso ? fshort(r.ultimoAcceso, true) : '—' }, { l: 'Seguridad', f: r => r.bloqueadoHasta > Date.now() ? '<span class="badge err">Bloqueado</span>' : '<span class="badge ok">OK</span>' }, { l: 'Estado', f: r => stBadge(r.estado) }],
+  cols: [{ l: 'Usuario', f: r => `<b>${esc(r.usuario)}</b>` }, { l: 'Nombre', f: r => esc(r.nombre) }, { l: 'Rol', f: r => esc(ROLES[r.rol]?.label) + (r.programaId ? ` <small>(${esc((DB.programas.find(p => p.id === r.programaId) || {}).codigo || r.programaId.toUpperCase())})</small>` : '') }, { l: 'Último acceso', f: r => r.ultimoAcceso ? fshort(r.ultimoAcceso, true) : '—' }, { l: 'Seguridad', f: r => r.bloqueadoHasta > Date.now() ? '<span class="badge err">Bloqueado</span>' : '<span class="badge ok">OK</span>' }, { l: 'Estado', f: r => stBadge(r.estado) }],
   rowActs: r => r.bloqueadoHasta > Date.now() ? ib('unlock', 'lock', 'Desbloquear') : '',
   onAct: (a, r, rer) => { if (a === 'unlock') { r.bloqueadoHasta = 0; r.intentos = 0; audit('Desbloqueo de cuenta', 'Usuarios', r.usuario); saveDB(); rer(); } },
   afterList: () => { $('.adm-main').insertAdjacentHTML('beforeend', `<div class="panel"><h2 id="perm-h">Matriz de permisos por rol</h2><div class="tbl-wrap" style="border:0" tabindex="0" role="region" aria-labelledby="perm-h"><table class="tbl light perm-grid"><thead><tr><th>Módulo</th>${Object.values(ROLES).map(r => `<th>${esc(r.label)}</th>`).join('')}</tr></thead><tbody>${Object.entries(MODULES).map(([k, l]) => `<tr><td>${esc(l)}</td>${Object.values(ROLES).map(r => `<td>${r.mods.includes(k) ? '✔' : '<span style="color:#ccc">—</span>'}</td>`).join('')}</tr>`).join('')}<tr><td><b>Publicar</b></td>${Object.values(ROLES).map(r => `<td>${r.publish ? '✔' : '—'}</td>`).join('')}</tr><tr><td><b>Aprobar (Transparencia, Admisión, Convocatorias)</b></td>${Object.values(ROLES).map(r => `<td>${r.approve ? '✔' : '—'}</td>`).join('')}</tr><tr><td><b>Eliminación definitiva</b></td>${Object.values(ROLES).map(r => `<td>${r.hardDelete ? '✔' : '—'}</td>`).join('')}</tr><tr><td><b>Ver DNI completo</b></td>${Object.values(ROLES).map(r => `<td>${r.viewDni ? '✔' : '—'}</td>`).join('')}</tr></tbody></table></div></div>`); },
@@ -6611,7 +6675,7 @@ function mensajeDetalle(id) {
   if (m.estado === 'Nuevo') { m.estado = 'Leído'; m.historial = m.historial || []; m.historial.push({ fecha: nowISO(), usuario: currentUser().usuario, estado: 'Leído' }); audit('Lectura', 'Mensajes de contacto', m.asunto); saveDB(); }
   const html = admHead(m.asunto, `Recibido el ${fdate(m.fecha, true)}`, `<a class="btn ghost" href="#/admin/mensajes">${sic('back')} Volver a la bandeja</a>`, 'mail', [['Mensajes de contacto', '#/admin/mensajes'], ['Detalle']])
     + `<div class="edit-grid"><div class="panel"><h2>Mensaje</h2><div class="pb"><dl class="kv"><dt>Nombres</dt><dd>${esc(m.nombres)}</dd><dt>Correo</dt><dd><a href="mailto:${esc(m.correo)}">${esc(m.correo)}</a></dd><dt>Teléfono</dt><dd>${esc(m.telefono || '—')}</dd>${m.documento ? `<dt>Documento</dt><dd>${esc(canFlag('viewDni') ? m.documento : maskDni(m.documento))}</dd>` : ''}<dt>Programa de interés</dt><dd>${esc((progById(m.programa) || {}).nombre || '—')}</dd></dl><div class="card cb" style="margin-top:12px;white-space:pre-wrap">${esc(m.mensaje)}</div>
-    <h3 style="margin-top:16px">Responder</h3><textarea class="inp" id="mr" rows="4" placeholder="Respuesta institucional; el envío por correo está pendiente.">${esc(m.respuesta || '')}</textarea><p style="margin-top:8px"><button class="btn" data-reply>${sic('send')} Guardar respuesta y marcar atendido</button></p></div></div>
+    <h3 style="margin-top:16px">Responder</h3><textarea class="inp" id="mr" rows="4" placeholder="Respuesta institucional; el aviso se registra en la cola de correo.">${esc(m.respuesta || '')}</textarea><p style="margin-top:8px"><button class="btn" data-reply>${sic('send')} Guardar respuesta y marcar atendido</button></p></div></div>
     <div><div class="panel"><h2>Estado</h2><div class="pb" style="display:grid;gap:8px">${stBadge(m.estado)}<div class="field"><label for="mst">Cambiar estado</label><select id="mst">${['Nuevo', 'Leído', 'Atendido'].map(s => `<option ${s === m.estado ? 'selected' : ''}>${s}</option>`).join('')}</select></div><button class="btn sec" data-st>Actualizar estado</button></div></div><div class="panel"><h2>Historial</h2><div class="pb">${histHTML(m.historial)}</div></div></div></div>`;
   return {
     html, after: () => {
@@ -6624,17 +6688,17 @@ function mensajeDetalle(id) {
 
 /* ---------- Libro de reclamaciones ---------- */
 const LR_STATES = ['Recibido', 'En atención', 'Atendido'];
-const lrTabs = a => tabsBar([['l', 'Reclamaciones', '#/admin/reclamos'], ['n', 'Correo pendiente', '#/admin/reclamos/notificaciones']], a);
+const lrTabs = a => tabsBar([['l', 'Reclamaciones', '#/admin/reclamos'], ['n', 'Notificaciones por correo', '#/admin/reclamos/notificaciones']], a);
 CUSTOM.reclamos = (parts) => {
   if (parts[2] === 'notificaciones') return lrNotif();
   if (parts[2]) return reclamoDetalle(parts[2]);
   const all = coll('reclamos'); const y = String(yearNow());
-  const top = `<div class="kpis">${kpi('book', 'var(--blue)', all.filter(r => r.fecha.startsWith(y)).length, 'Registrados en ' + y)}${kpi('inbox', 'var(--warn)', all.filter(r => r.estado === 'Recibido' && !r.anulado).length, 'Recibidos sin atender')}${kpi('clock', '#6d4bc4', all.filter(r => r.estado === 'En atención' && !r.anulado).length, 'En atención')}${kpi('check', 'var(--ok)', all.filter(r => r.estado === 'Atendido' && !r.anulado).length, 'Atendidos')}${kpi('alert', 'var(--err)', all.filter(r => r.notifInst === 'Error' && !r.anulado).length, 'Notificaciones con error')}</div>`;
+  const top = `<div class="kpis">${kpi('book', 'var(--blue)', all.filter(r => r.fecha.startsWith(y)).length, 'Registrados en ' + y)}${kpi('inbox', 'var(--warn)', all.filter(r => r.estado === 'Recibido' && !r.anulado).length, 'Recibidos sin atender')}${kpi('clock', '#6d4bc4', all.filter(r => r.estado === 'En atención' && !r.anulado).length, 'En atención')}${kpi('check', 'var(--ok)', all.filter(r => r.estado === 'Atendido' && !r.anulado).length, 'Atendidos')}${kpi('alert', 'var(--err)', 'Ver panel', 'Notificaciones SMTP')}</div>`;
   const ib2 = inbox({
     key: 'reclamos', collName: 'reclamos', title: 'Libro de reclamaciones', sub: 'Los registros no pueden eliminarse ni modificarse en su contenido original. Solo se gestiona su atención.', icon: 'book', states: LR_STATES.concat('Anulado'), trash: false, top, tabs: lrTabs('l'),
     filterExtra: [{ n: 'tipo', l: 'Tipo', opts: ['Reclamo', 'Queja'] }], search: r => [r.codigo, r.nombres, r.asunto, r.numDoc].join(' '),
     extraActs: `<button class="btn sec" data-rcsv>${sic('download')} Reporte CSV</button><a class="btn ghost" href="#/servicios/libro-de-reclamaciones" target="_blank">Ver formulario público</a>`,
-    cols: [{ l: 'Código', f: r => `<b>${esc(r.codigo)}</b>` }, { l: 'Fecha', f: r => fshort(r.fecha, true) }, { l: 'Tipo', f: r => esc(r.tipo) }, { l: 'Reclamante', f: r => `${esc(r.nombres)}<br><small>${esc(r.tipoDoc)} ${dniCell(r.numDoc)}</small>` }, { l: 'Asunto', f: r => esc(clamp(r.asunto, 50)) }, { l: 'Notif. institucional', cls: 'c', f: r => stBadge(r.notifInst) }, { l: 'Estado', cls: 'c', f: r => stBadge(r.anulado ? 'Anulado' : r.estado) }, { l: 'Días', cls: 'num', f: r => r.estado === 'Atendido' || r.anulado ? '—' : `<span style="color:${daysAgo(r.fecha) > 10 ? 'var(--err)' : 'inherit'}">${daysAgo(r.fecha)}</span>` }],
+    cols: [{ l: 'Código', f: r => `<b>${esc(r.codigo)}</b>` }, { l: 'Fecha', f: r => fshort(r.fecha, true) }, { l: 'Tipo', f: r => esc(r.tipo) }, { l: 'Reclamante', f: r => `${esc(r.nombres)}<br><small>${esc(r.tipoDoc)} ${dniCell(r.numDoc)}</small>` }, { l: 'Asunto', f: r => esc(clamp(r.asunto, 50)) }, { l: 'Correo', cls: 'c', f: r => 'Ver panel SMTP' }, { l: 'Estado', cls: 'c', f: r => stBadge(r.anulado ? 'Anulado' : r.estado) }, { l: 'Días', cls: 'num', f: r => r.estado === 'Atendido' || r.anulado ? '—' : `<span style="color:${daysAgo(r.fecha) > 10 ? 'var(--err)' : 'inherit'}">${daysAgo(r.fecha)}</span>` }],
   });
   return { html: ib2.html, after: () => { ib2.after(); $('[data-rcsv]').onclick = () => { downloadText(toCSV([['Código', 'Fecha', 'Tipo', 'Reclamante', 'Documento', 'Correo', 'Asunto', 'Estado', 'Notificación institucional', 'Fecha de atención', 'Respuesta']].concat(ib2.rows.map(r => [r.codigo, fshort(r.fecha, true), r.tipo, r.nombres, r.tipoDoc + ' ' + (canFlag('viewDni') ? r.numDoc : maskDni(r.numDoc)), r.correo, r.asunto, r.anulado ? 'Anulado' : r.estado, r.notifInst, r.atendidoEn ? fshort(r.atendidoEn, true) : '', r.respuesta]))), 'reporte_libro_reclamaciones.csv', 'text/csv'); audit('Exportación', 'Libro de reclamaciones', ib2.rows.length + ' registros'); saveDB(); }; } };
 };
@@ -6643,10 +6707,10 @@ function reclamoDetalle(id) {
   const isAdm = currentUser().rol === 'admin';
   const html = admHead(`${r.tipo} ${r.codigo}`, `Registrado el ${fdate(r.fecha, true)} · ${r.anulado ? '<span class="badge err">Anulado</span>' : stBadge(r.estado)}`, `<button class="btn sec" data-pdf>${sic('print')} Hoja de reclamación (PDF)</button><a class="btn ghost" href="#/admin/reclamos">${sic('back')} Volver</a>`, 'book', [['Libro de reclamaciones', '#/admin/reclamos'], [r.codigo]])
     + `<div class="edit-grid"><div style="display:grid;gap:16px"><div class="panel"><h2>Registro original <span class="badge gray">${sic('lock', 12)} Solo lectura</span></h2><div class="pb"><dl class="kv"><dt>Código</dt><dd><b>${esc(r.codigo)}</b></dd><dt>Fecha y hora</dt><dd>${fdate(r.fecha, true)}</dd><dt>Tipo</dt><dd>${esc(r.tipo)}</dd><dt>Reclamante</dt><dd>${esc(r.nombres)}</dd><dt>Documento</dt><dd>${esc(r.tipoDoc)} ${dniCell(r.numDoc)}</dd><dt>Correo</dt><dd>${esc(r.correo)}</dd><dt>Teléfono</dt><dd>${esc(r.telefono || '—')}</dd><dt>Asunto</dt><dd>${esc(r.asunto)}</dd></dl><h3>Descripción del hecho</h3><div class="card cb" style="white-space:pre-wrap">${esc(r.descripcion)}</div><h3>Pedido</h3><div class="card cb" style="white-space:pre-wrap">${esc(r.pedido)}</div>${r.adjunto ? `<p><button class="btn sm sec" data-adj>${sic('download')} Adjunto: ${esc(r.adjunto.original || r.adjunto.nombre)} (${fsize(r.adjunto.size)})</button></p>` : '<p style="color:var(--muted)">Sin archivo adjunto.</p>'}</div></div>
-    <div class="panel"><h2>Respuesta institucional</h2><div class="pb">${r.respuesta ? `<div class="notice ok" style="white-space:pre-wrap">${esc(r.respuesta)}<br><small>Respondido por ${esc(r.atendidoPor || '—')} el ${fshort(r.atendidoEn, true)} · Notificación al usuario: ${esc(r.notifUser)}</small></div>` : ''}${r.anulado ? '' : `<textarea class="inp" id="lr-resp" aria-label="Respuesta al reclamante" rows="5" placeholder="Respuesta institucional; el envío por correo está pendiente.">${esc(r.respuesta || '')}</textarea><p style="margin-top:8px"><button class="btn ok" data-resp>${sic('send')} Guardar respuesta y marcar atendido</button></p>`}</div></div>
+    <div class="panel"><h2>Respuesta institucional</h2><div class="pb">${r.respuesta ? `<div class="notice ok" style="white-space:pre-wrap">${esc(r.respuesta)}<br><small>Respondido por ${esc(r.atendidoPor || '—')} el ${fshort(r.atendidoEn, true)} · Notificación al usuario: Ver panel de correo</small></div>` : ''}${r.anulado ? '' : `<textarea class="inp" id="lr-resp" aria-label="Respuesta al reclamante" rows="5" placeholder="Respuesta institucional; el aviso se registra en la cola de correo.">${esc(r.respuesta || '')}</textarea><p style="margin-top:8px"><button class="btn ok" data-resp>${sic('send')} Guardar respuesta y marcar atendido</button></p>`}</div></div>
     <div class="panel"><h2>Notas internas <small style="font-weight:400;color:var(--muted)">(no visibles para el ciudadano)</small></h2><div class="pb">${(r.notas || []).map(n => `<div class="card cb" style="margin-bottom:8px"><small style="color:var(--muted)">${esc(n.usuario)} · ${fshort(n.fecha, true)}</small><br>${esc(n.texto)}</div>`).join('') || '<p style="color:var(--muted)">Sin notas.</p>'}<div style="display:flex;gap:8px"><input class="inp" id="lr-nota" aria-label="Nueva nota interna" placeholder="Agregar nota interna"><button class="btn sec" data-nota>Agregar</button></div></div></div></div>
     <div style="display:grid;gap:16px;align-content:start"><div class="panel"><h2>Gestión</h2><div class="pb" style="display:grid;gap:10px">${r.anulado ? `<div class="notice err">Registro anulado por ${esc(r.anuladoPor)}: ${esc(r.motivoAnulacion)}</div>` : `<div class="field"><label for="lr-st">Estado</label><select id="lr-st">${LR_STATES.map(s => `<option ${s === r.estado ? 'selected' : ''}>${s}</option>`).join('')}</select></div><div class="field"><label for="lr-sn">Comentario del cambio</label><input id="lr-sn" class="inp"></div><button class="btn" data-st>Actualizar estado</button>${isAdm ? `<button class="btn danger" data-anular>Anular registro</button><small style="color:var(--muted)">La anulación no elimina el registro; queda en el historial y la auditoría.</small>` : ''}`}</div></div>
-    <div class="panel"><h2>Notificaciones</h2><div class="pb meta-list"><span>Al correo institucional: ${stBadge(r.notifInst)}</span>${r.notifInst === 'Error' ? `<button class="btn sm gold" data-retry>${sic('restore')} Reintentar envío</button>` : ''}<span>Constancia al ciudadano: ${stBadge(r.notifUser)}</span><span style="font-size:12px">Destino: ${esc(DB.config.correoReclamos)}</span></div></div>
+    <div class="panel"><h2>Notificaciones</h2><div class="pb"><p>La constancia, las derivaciones y las respuestas se notifican desde el correo central. El administrador puede consultar entregas, errores y reintentos en Configuración de la intranet → Notificaciones por correo.</p></div></div>
     <div class="panel"><h2>Historial de estados</h2><div class="pb">${histHTML(r.historial)}</div></div></div></div>`;
   return {
     html, after: () => {
@@ -6655,17 +6719,13 @@ function reclamoDetalle(id) {
       const adj = $('[data-adj]'); if (adj) adj.onclick = () => { downloadDoc(r.adjunto); audit('Descarga de adjunto', 'Libro de reclamaciones', r.codigo); saveDB(); };
       $('[data-nota]').onclick = () => { const t = $('#lr-nota').value.trim(); if (!t) return; r.notas = r.notas || []; r.notas.push({ fecha: nowISO(), usuario: me, texto: t }); audit('Nota interna', 'Libro de reclamaciones', r.codigo); save('Nota agregada.'); };
       const st = $('[data-st]'); if (st) st.onclick = () => { const v = $('#lr-st').value; if (v === r.estado) return toast('Seleccione un estado diferente.', 'err'); if (v === 'Atendido' && !r.respuesta) return toast('Registre primero la respuesta institucional.', 'err'); r.historial.push({ fecha: nowISO(), usuario: me, estado: v, nota: $('#lr-sn').value.trim() }); audit(`Cambio de estado: ${r.estado} → ${v}`, 'Libro de reclamaciones', r.codigo); r.estado = v; save('Estado actualizado.'); };
-      const rs = $('[data-resp]'); if (rs) rs.onclick = () => { const t = $('#lr-resp').value.trim(); if (t.length < 10) return toast('La respuesta debe tener al menos 10 caracteres.', 'err'); r.respuesta = t; r.atendidoPor = me; r.atendidoEn = nowISO(); r.notifUser = mailOut(r.correo, `Respuesta a su ${r.tipo.toLowerCase()} ${r.codigo}`, t); if (r.estado !== 'Atendido') r.historial.push({ fecha: nowISO(), usuario: me, estado: 'Atendido', nota: 'Respuesta registrada en el portal' }); r.estado = 'Atendido'; audit('Respuesta institucional', 'Libro de reclamaciones', r.codigo, 'Notificación al usuario: ' + r.notifUser); save(r.notifUser === 'Error' ? 'Respuesta registrada, pero falló el envío del correo.' : 'Respuesta registrada. El correo está desactivado.'); };
-      const rt = $('[data-retry]'); if (rt) rt.onclick = () => { r.notifInst = mailOut(DB.config.correoReclamos, `[${r.codigo}] Reenvío de notificación`, `${r.nombres} - ${r.asunto}`); audit('Reintento de notificación', 'Libro de reclamaciones', r.codigo, 'Resultado: ' + r.notifInst); save(r.notifInst === 'Enviado' ? 'Notificación reenviada correctamente.' : 'El envío volvió a fallar. Revise la configuración de correo.'); };
-      const an = $('[data-anular]'); if (an) an.onclick = async () => { const m = await promptBox('Motivo de la anulación (quedará registrado):', { title: 'Anular registro', ok: 'Anular', textarea: true }); if (m == null) return; if (m.trim().length < 5) return toast('Indique el motivo.', 'err'); r.anulado = true; r.anuladoPor = me; r.motivoAnulacion = m.trim(); r.historial.push({ fecha: nowISO(), usuario: me, estado: 'Anulado', nota: m.trim() }); audit('Anulación', 'Libro de reclamaciones', r.codigo, m.trim()); save('Registro anulado.'); };
+      const rs = $('[data-resp]'); if (rs) rs.onclick = () => { const t = $('#lr-resp').value.trim(); if (t.length < 10) return toast('La respuesta debe tener al menos 10 caracteres.', 'err'); r.respuesta = t; r.atendidoPor = me; r.atendidoEn = nowISO();  if (r.estado !== 'Atendido') r.historial.push({ fecha: nowISO(), usuario: me, estado: 'Atendido', nota: 'Respuesta registrada en el portal' }); r.estado = 'Atendido'; audit('Respuesta institucional', 'Libro de reclamaciones', r.codigo, 'Notificación al usuario: ' + r.notifUser); save('Respuesta registrada. El aviso se procesará desde la cola de correo.'); };
+      const an = $('[data-anular]'); if (an) an.onclick = async () => { const m = await promptBox('Motivo de la anulación (quedará registrado):', { title: 'Anular registro', ok: 'Anular', textarea: true }); if (m == null) return; if (m.trim().length < 5) return toast('Indique el motivo.', 'err'); r.anulado = true; r.estado = 'Anulado'; r.anuladoPor = me; r.motivoAnulacion = m.trim(); r.historial.push({ fecha: nowISO(), usuario: me, estado: 'Anulado', nota: m.trim() }); audit('Anulación', 'Libro de reclamaciones', r.codigo, m.trim()); save('Registro anulado.'); };
     }
   };
 }
 function lrNotif() {
-  const rows = coll('correos').filter(c => /LR-|reclam|queja/i.test(c.asunto) || c.para === DB.config.correoReclamos);
-  const html = admHead('Libro de reclamaciones', 'Bitácora de correos generados por el sistema (en producción se envían por SMTP institucional).', '', 'book', [['Libro de reclamaciones', '#/admin/reclamos'], ['Notificaciones']]) + lrTabs('n')
-    + `<div class="panel"><div class="tbl-wrap" style="border:0"><table class="tbl light"><thead><tr><th>Fecha</th><th>Destinatario</th><th>Asunto</th><th class="c">Resultado</th></tr></thead><tbody>${rows.map(c => `<tr><td>${fshort(c.fecha, true)}</td><td>${esc(c.para)}</td><td>${esc(c.asunto)}</td><td class="c">${stBadge(c.estado)}</td></tr>`).join('') || '<tr><td colspan="4"><div class="empty">Aún no se generaron notificaciones.</div></td></tr>'}</tbody></table></div></div>`;
-  return { html };
+ return {html:admHead('Notificaciones del Libro de Reclamaciones','Los avisos se generan en el servidor y se entregan con el correo central.','','book')+lrTabs('n')+'<div class="panel"><div class="pb"><p>Consulta los estados reales y los reintentos en Configuración de la intranet → Notificaciones por correo. Esta bitácora está reservada al administrador.</p></div></div>'};
 }
 
 /* ---------- Mesa de partes virtual ---------- */
@@ -6688,7 +6748,7 @@ function expDetalle(id) {
       const a = $('[data-arch]'); if (a) a.onclick = () => downloadDoc(x.archivo);
       $('[data-xa]').onclick = () => { const v = $('#xa').value; if (!v || v === x.area) return toast('Seleccione un área diferente.', 'err'); const n = 'Derivado a ' + areaName(v); x.area = v; if (x.estado === 'Recibido') x.estado = 'En proceso'; x.historial.push({ fecha: nowISO(), usuario: currentUser().usuario, estado: x.estado, nota: n }); audit('Derivación', 'Mesa de partes', x.numero, n); stamp(x); if (saveDB()) { toast('Expediente derivado.', 'ok'); route(); } };
       $('[data-cargo]').onclick = () => cargoExp(x.id);
-      $('[data-xs]').onclick = () => { const v = $('#xs').value, n = $('#xn').value.trim(); if (v === x.estado && !n) return toast('Seleccione otro estado o escriba una nota.', 'err'); if (v === 'Observado' && !n) return toast('Indique la observación en la nota.', 'err'); x.historial.push({ fecha: nowISO(), usuario: currentUser().usuario, estado: v, nota: n }); audit(`Cambio de estado: ${x.estado} → ${v}`, 'Mesa de partes', x.numero, n); x.estado = v; stamp(x); if ($('#xm').checked) mailOut(x.correo, `Expediente ${x.numero}: ${v}`, n || 'Su expediente cambió de estado.'); if (saveDB()) { toast('Expediente actualizado.', 'ok'); route(); } };
+      $('[data-xs]').onclick = () => { const v = $('#xs').value, n = $('#xn').value.trim(); if (v === x.estado && !n) return toast('Seleccione otro estado o escriba una nota.', 'err'); if (v === 'Observado' && !n) return toast('Indique la observación en la nota.', 'err'); x.historial.push({ fecha: nowISO(), usuario: currentUser().usuario, estado: v, nota: n }); audit(`Cambio de estado: ${x.estado} → ${v}`, 'Mesa de partes', x.numero, n); x.estado = v; if ($('#xm').checked) delete x.sinAviso; else x.sinAviso = true; stamp(x); if ($('#xm').checked) mailOut(x.correo, `Expediente ${x.numero}: ${v}`, n || 'Su expediente cambió de estado.'); if (saveDB()) { toast('Expediente actualizado.', 'ok'); route(); } };
     }
   };
 }
@@ -6843,7 +6903,7 @@ function renderAdmin(parts, q) {
   const key = parts[1] || 'dashboard'; const spec = SPECS[key]; const custom = CUSTOM[key];
   if (!spec && !custom) return { html: admShell('', admHead('Página no encontrada', 'El módulo solicitado no existe.', '<a class="btn" href="#/admin">Ir al inicio</a>', 'alert')), after: bindAdmChrome };
   const mod = spec ? spec.mod : (MOD_OF[key] || key);
-  if (!can(mod)) { audit('Acceso denegado', MODULES[mod] || key, '#/admin/' + parts.slice(1).join('/')); saveDB(); return { html: admShell('', admHead('Acceso denegado', `Su rol (<b>${esc(role().label)}</b>) no tiene permiso para este módulo. El intento quedó registrado en la auditoría.`, '<a class="btn" href="#/admin">Volver al inicio</a>', 'lock')), after: bindAdmChrome }; }
+  if (!can(mod)) { audit('Acceso denegado', MODULES[mod] || key, '#/admin/' + parts.slice(1).join('/')); return { html: admShell('', admHead('Acceso denegado', `Su rol (<b>${esc(role().label)}</b>) no tiene permiso para este módulo. El intento quedó registrado en la auditoría.`, '<a class="btn" href="#/admin">Volver al inicio</a>', 'lock')), after: bindAdmChrome }; }
   let out;
   try { out = spec ? (parts[2] ? crudForm(spec, parts[2]) : crudList(spec)) : custom(parts, q); }
   catch (e) { console.error(e); out = { html: admHead('Ocurrió un error', esc(e.message), '<a class="btn" href="#/admin">Volver al inicio</a>', 'alert') }; }
@@ -6863,13 +6923,21 @@ const isCommunity = () => !!role().community;
 function ixStyle() { const h = v => /^#[0-9a-f]{6}$/i.test(v || ''); const b = h(TC.blue) ? TC.blue : '#1556b8', g = h(TC.gold) ? TC.gold : '#f2b705', n = h(TC.navy) ? TC.navy : '#0a2a5e'; const lum = parseInt(b.slice(1, 3), 16) * .299 + parseInt(b.slice(3, 5), 16) * .587 + parseInt(b.slice(5, 7), 16) * .114; return `--c-brand:${b};--c-brand-ink:${lum > 150 ? '#111' : '#fff'};--c-acc:${g};--c-side:${n}`; }
 function ixWrap(inner) { const l = document.getElementById('ix-layer'); if (l) l.setAttribute('style', ixStyle()); return `<div class="ix ix-page" id="ix-root" data-palette="web" style="${ixStyle()}">${inner}</div>`; }
 const businessDaysLeft = (fromISO, days) => { const d = new Date(String(fromISO).slice(0, 10) + 'T12:00:00'); let k = 0; while (k < days) { d.setDate(d.getDate() + 1); if (![0, 6].includes(d.getDay())) k++; } const t = new Date(); t.setHours(12, 0, 0, 0); let n = 0; const s = t <= d ? 1 : -1; const c = new Date(t); while (c.toDateString() !== d.toDateString()) { c.setDate(c.getDate() + s); if (![0, 6].includes(c.getDay())) n += s; } return { due: d, left: n }; };
+const AREA_LEVELS = ['Mesa de Partes', 'Dirección', 'Órganos y comités', 'Áreas', 'Unidades', 'Coordinaciones de programas de estudio'];
+function areaLevel(area) {
+  const level = String(area.nivel || '').trim();
+  if (level === 'Oficina') return area.cod === 'MP' ? 'Mesa de Partes' : area.cod === 'DG' ? 'Dirección' : 'Áreas';
+  return new Map([['', 'Áreas'], ['Área', 'Áreas'], ['Unidad', 'Unidades'], ['Programa', 'Coordinaciones de programas de estudio']]).get(level) || level;
+}
+function areaLevels(areas) { return [...new Set([...AREA_LEVELS, ...areas.map(areaLevel)])]; }
 const IXHOST = {
   loadAcad: () => DB.academico || null,
+  areaLevels: areas => areaLevels(areas),
   saveAcad: a => { DB.academico = a; return saveDB(); },
   openBackups: () => {location.href='/respaldos.php';},
   toast: m => toast(m),
   audit: (a, m, d) => audit(a, m, d),
-  head: (title, desc, actions, code) => { const t = String(title).replace(/<[^>]+>/g, ''), c = code || ''; const grp = /administrativa/.test(c) ? 'Servicios' : /Configuraci/.test(c) ? 'Configuración y seguridad' : 'Gestión académica'; const icon = { 'Programación de horarios': 'calendar', 'Maestro de alumnos': 'users', 'Constancias y certificados': 'award', 'Grados y títulos': 'grad', 'Bolsa laboral': 'briefcase', 'Configuración académica': 'gear' }[t] || 'grad'; return admHead(t, desc || '', actions || '', icon, [[grp], [t]]); },
+  head: (title, desc, actions, code) => { const t = String(title).replace(/<[^>]+>/g, ''), c = code || ''; const grp = /administrativa/.test(c) ? 'Servicios' : /Configuraci/.test(c) ? 'Configuración y seguridad' : 'Gestión académica'; const icon = { 'Programación de horarios': 'calendar', 'Maestro de alumnos': 'users', 'Constancias y certificados': 'award', 'Grados y títulos': 'grad', 'Bolsa laboral': 'briefcase', 'Configuración académica': 'gear', 'Configuración académica general':'gear', 'Certificación modular':'award' }[t] || 'grad'; return admHead(t, desc || '', actions || '', icon, [[grp], [t]]); },
   user: () => { const u = currentUser(); const r = u && IX_ROLE[u.rol]; return r ? { id: u.ixId || u.id, u: u.usuario, nom: u.nombre, rol: r, estado: u.estado, dni: u.dni || '', area: u.area || '', vin: u.vin || '', ult: u.ultimoAcceso || '' } : null; },
   users: () => coll('usuarios').filter(u => IX_ROLE[u.rol]).map(u => ({ id: u.ixId || u.id, u: u.usuario, nom: u.nombre, rol: IX_ROLE[u.rol], estado: u.estado, dni: u.dni || '', area: u.area || '', vin: u.vin || '', ult: u.ultimoAcceso || '' })),
   createStudentAccount: e => {
@@ -7001,8 +7069,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 </script>
 <script>
-/* ==== pisco.js ==== Portal Web IES PALPA 2026 */
-var PISCO_LOGO = "/assets/palpa/footer-logo-cb16952ab8.png";
+/* ==== portal.js ==== Intranet IES PALPA 2026 */
 (function () {
 'use strict';
 /* =========================================================
@@ -7013,8 +7080,8 @@ const MPV_PLAZOS = { 'Solicitud': 10, 'Oficio': 7, 'Carta': 7, 'Informe': 7, 'Me
 const MPV_FORMATOS = [['pdf', 'PDF'], ['doc', 'DOC'], ['docx', 'DOCX'], ['xls', 'XLS'], ['xlsx', 'XLSX'], ['jpg', 'JPG'], ['jpeg', 'JPEG'], ['png', 'PNG']];
 const MIME_OK = { pdf: ['application/pdf'], doc: ['application/msword'], docx: ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'], xls: ['application/vnd.ms-excel'], xlsx: ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'], jpg: ['image/jpeg'], jpeg: ['image/jpeg'], png: ['image/png'] };
 const FERIADOS_2026 = ['2026-01-01', '2026-04-02', '2026-04-03', '2026-05-01', '2026-06-07', '2026-06-29', '2026-07-23', '2026-07-28', '2026-07-29', '2026-08-06', '2026-08-30', '2026-10-08', '2026-11-01', '2026-12-08', '2026-12-09', '2026-12-25'];
-const LR_DEF = { responsable: 'Responsable de Administración', cargo: 'Jefa de Área de Administración', correo: '', plazoReclamo: 15, plazoQueja: 15, alerta: 3, areaInicial: 'ADM',
-  flujo: 'El reclamo o queja se registra en el Libro de Reclamaciones Virtual y se notifica al responsable institucional. El responsable lo deriva al área competente, que lo atiende y propone la respuesta. El responsable remite la respuesta al usuario por correo electrónico dentro del plazo. Todo el recorrido queda en el historial.' };
+const LR_DEF = { responsable: '', cargo: '', correo: '', plazoReclamo: 15, plazoQueja: 15, alerta: 3, areaInicial: 'ADM',
+  flujo: 'El reclamo o queja se registra en el Libro de Reclamaciones Virtual. El responsable institucional lo deriva al área competente, registra la respuesta y la deja disponible en la consulta de seguimiento. Todo el recorrido queda en el historial.' };
 const BOLSA_DEF = { responsable: 'Unidad de Bienestar y Empleabilidad', jefe: 'Jefe(a) de la Unidad de Bienestar y Empleabilidad', correo: '',
   criterios: ['RUC de 11 dígitos válido (dígito verificador), en estado ACTIVO y condición HABIDO en SUNAT.', 'Razón social, sector económico y dirección fiscal coincidentes con la ficha RUC.', 'Persona de contacto con cargo y correo corporativo o institucional verificable.', 'Actividad económica lícita y vinculada a los programas de estudio del instituto.', 'Las convocatorias deben indicar puesto, requisitos, modalidad y fecha límite; no se aceptan cobros a postulantes.', 'Plazo de evaluación: hasta 3 días hábiles desde el registro.'] };
 
@@ -7022,7 +7089,7 @@ function pzEnsure() {
   if (!DB || !DB.config) return;
   const c = DB.config; c.contadores = c.contadores || {};
   ['LR', 'EXP', 'MPV', 'DOC', 'RCL'].forEach(k => { c.contadores[k] = c.contadores[k] || {}; });
-  c.mpv = Object.assign({ horaIni: '13:00', horaFin: '20:00', dias: 'Lunes a viernes', maxMB: 40, maxArchivos: 5, tipos: MPV_TIPOS.slice(), formatos: MPV_FORMATOS.map(f => f[0]), feriados: FERIADOS_2026.slice(), plazos: Object.assign({}, MPV_PLAZOS), correo: 'mesadepartes@istpalpa.edu.pe', telefono: '056-316056', prefijo: 'MPV-IESPALPA' }, c.mpv || {});
+  c.mpv = Object.assign({ horaIni: '13:00', horaFin: '20:00', dias: 'Lunes a viernes', maxMB: 40, maxArchivos: 5, tipos: MPV_TIPOS.slice(), formatos: MPV_FORMATOS.map(f => f[0]), feriados: FERIADOS_2026.slice(), plazos: Object.assign({}, MPV_PLAZOS), correo: 'ranjoumisael@gmail.com', telefono: '056-316056', prefijo: 'MPV-IESPALPA', digitos: 6 }, c.mpv || {});
   c.lr = Object.assign({}, LR_DEF, c.lr || {});
   c.bolsa = Object.assign({}, BOLSA_DEF, c.bolsa || {});
   Object.assign(EXP_PLAZOS, c.mpv.plazos);
@@ -7070,10 +7137,9 @@ const lrSem = r => { if (r.anulado || r.estado === 'Atendido') return '<span cla
 /* ---------- Áreas receptoras (catálogo único del módulo académico) ---------- */
 const areasAll = () => (IX && IX.areasFull ? IX.areasFull() : []);
 const areaOf = cod => areasAll().find(a => a.cod === cod) || null;
-const NIVELES = ['Mesa de Partes', 'Dirección', 'Órganos y comités', 'Áreas', 'Unidades', 'Coordinaciones de programas de estudio'];
 function areaOptions(sel, { skipMP = false, placeholder = 'Seleccione el área de destino' } = {}) {
   const as = areasAll().filter(a => a.activo && !(skipMP && a.cod === 'MP'));
-  return `<option value="">${esc(placeholder)}</option>` + NIVELES.map(n => { const g = as.filter(a => (a.nivel || 'Áreas') === n); return g.length ? `<optgroup label="${esc(n)}">${g.map(a => `<option value="${esc(a.cod)}" ${a.cod === sel ? 'selected' : ''}>${esc(a.nombre)}</option>`).join('')}</optgroup>` : ''; }).join('');
+  return `<option value="">${esc(placeholder)}</option>` + areaLevels(as).map(n => { const g = as.filter(a => areaLevel(a) === n); return g.length ? `<optgroup label="${esc(n)}">${g.map(a => `<option value="${esc(a.cod)}" ${a.cod === sel ? 'selected' : ''}>${esc(a.nombre)}</option>`).join('')}</optgroup>` : ''; }).join('');
 }
 
 /* ---------- Archivos compartidos en el servidor ---------- */
@@ -7147,60 +7213,67 @@ const S16 = n => sic(n, 16);
    1.4 MESA DE PARTES VIRTUAL
    ========================================================= */
 const MPV_ESTADOS_PUB = { Recibido: 'Recibido por Mesa de Partes', Derivado: 'Derivado al área de destino', 'En proceso': 'En atención en el área', Observado: 'Observado (revise el seguimiento)', Atendido: 'Atendido', Archivado: 'Archivado' };
-function horarioBox(compact) {
+function horarioBox(compact, short) {
   const c = mpvCfg(); const now = new Date(); const r = recepcionDe(now.toISOString());
   const st = r.enHorario ? `<span class="pz-live ok">● En horario de atención: tu documento se recibe en este momento.</span>` : `<span class="pz-live off">● Fuera del horario de atención: puedes registrar tu documento; se considerará recibido el <b>${fdate(r.fecha, true)}</b>.</span>`;
-  return `<section class="pz-horario ${compact ? 'compact' : ''}" aria-label="Horario de atención de la Mesa de Partes Virtual"><div class="pz-h-ic">${ic('clock')}</div><div><span class="pz-k">Horario de atención</span><b>${esc(c.dias)}</b><b class="pz-hh">${fmt12(c.horaIni)} – ${fmt12(c.horaFin)}</b>${st}</div></section>`;
+  if (compact) return `<section class="pz-horario compact" aria-label="Horario de atención de la Mesa de Partes Virtual"><div class="pz-h-ic">${ic('clock')}</div><div><span class="pz-k">Horario de atención · ${esc(c.dias)}</span><b class="pz-hh">${fmt12(c.horaIni)} – ${fmt12(c.horaFin)}</b>${short ? `<span class="pz-live ${r.enHorario ? 'ok' : 'off'}">● ${r.enHorario ? 'Abierto ahora' : 'Fuera de horario'}</span>` : st}</div></section>`;
+  return `<section class="pz-horario" aria-label="Horario de atención de la Mesa de Partes Virtual"><div class="pz-h-ic">${ic('clock')}</div><div><span class="pz-k">Horario de atención</span><b>${esc(c.dias)}</b><b class="pz-hh">${fmt12(c.horaIni)} – ${fmt12(c.horaFin)}</b>${st}</div></section>`;
+}
+function mpvRecepcionNota() {
+  const r = recepcionDe(new Date().toISOString());
+  return r.enHorario ? '' : `<p class="pz-recep">${sic('clock', 15)}<span>Fuera del horario de atención: puedes registrar tu documento; se considerará recibido el <b>${fdate(r.fecha, true)}</b>.</span></p>`;
 }
 function mpvForm() {
   const c = mpvCfg(); const exts = c.formatos;
   return `<form class="card cb pz-form" data-mpv novalidate>
    <div class="pz-sec-h"><span>1</span><h2>Datos del remitente</h2></div><div class="form-grid">
-    <div class="field"><label for="mv-tp">Tipo de persona <span class="req">*</span></label><select id="mv-tp" name="tipoPersona"><option>Persona natural</option><option>Persona jurídica / entidad</option></select></div>
-    <div class="field"><label for="mv-td">Tipo de documento <span class="req">*</span></label><select id="mv-td" name="tipoDoc"><option>DNI</option><option value="CE">Carné de extranjería</option><option>Pasaporte</option><option>RUC</option></select></div>
-    <div class="field"><label for="mv-nd">N.º de documento <span class="req">*</span></label><input id="mv-nd" name="numDoc" maxlength="12" inputmode="numeric" autocomplete="off"></div>
+    <div class="field full"><div class="pz-seg2" role="radiogroup" aria-label="Tipo de persona"><label><input type="radio" name="tipoPersona" value="Persona natural" checked><span>Persona natural</span></label><label><input type="radio" name="tipoPersona" value="Persona jurídica / entidad"><span>Persona jurídica / entidad</span></label></div></div>
+    <div class="field"><label for="mv-nd">Documento de identidad <span class="req">*</span></label><div class="pz-docpair"><select id="mv-td" name="tipoDoc" aria-label="Tipo de documento"><option>DNI</option><option value="CE">Carné de extranjería</option><option>Pasaporte</option><option>RUC</option></select><input id="mv-nd" name="numDoc" maxlength="12" inputmode="numeric" autocomplete="off" aria-label="Número de documento"></div></div>
     <div class="field" data-nat><label for="mv-no">Nombres <span class="req">*</span></label><input id="mv-no" name="nombresP" maxlength="80" autocomplete="given-name"></div>
     <div class="field" data-nat><label for="mv-ap">Apellidos <span class="req">*</span></label><input id="mv-ap" name="apellidos" maxlength="80" autocomplete="family-name"></div>
     <div class="field full" data-jur hidden><label for="mv-rs">Razón social / nombre de la entidad <span class="req">*</span></label><input id="mv-rs" name="razon" maxlength="150"></div>
-    <div class="field"><label for="mv-e">Correo electrónico (notificaciones) <span class="req">*</span></label><input id="mv-e" name="correo" type="email" maxlength="120" autocomplete="email"></div>
-    <div class="field"><label for="mv-t">Teléfono / celular <span class="req">*</span></label><input id="mv-t" name="telefono" maxlength="15" inputmode="tel" autocomplete="tel"></div>
-    <div class="field full"><label for="mv-dir">Dirección (opcional)</label><input id="mv-dir" name="direccion" maxlength="160" autocomplete="street-address"></div>
+    <div class="field"><label for="mv-e">Correo electrónico <span class="req">*</span></label><input id="mv-e" name="correo" type="email" maxlength="120" autocomplete="email" placeholder="nombre@correo.com"><div class="hint">Aquí recibirás las notificaciones.</div></div>
+    <div class="field"><label for="mv-t">Celular <span class="req">*</span></label><input id="mv-t" name="telefono" maxlength="15" inputmode="tel" autocomplete="tel"></div>
    </div>
-   <div class="pz-sec-h"><span>2</span><h2>Datos del documento</h2></div><div class="form-grid">
-    <div class="field"><label for="mv-tt">Tipo de documento a presentar <span class="req">*</span></label><select id="mv-tt" name="tipoTramite"><option value="">Seleccione</option>${c.tipos.map(t => `<option>${esc(t)}</option>`).join('')}</select></div>
-    <div class="field"><label for="mv-ref">N.º o referencia de su documento</label><input id="mv-ref" name="docRef" maxlength="80" placeholder="Ej.: Oficio N.º 012-2026-MPP"></div>
-    <div class="field full"><label for="mv-ar">Área de destino <span class="req">*</span></label><select id="mv-ar" name="areaDestino">${areaOptions('', { skipMP: true })}</select><div class="hint" data-arhint>La Mesa de Partes Virtual recibe el documento y lo deriva al área seleccionada.</div></div>
-    <div class="field full"><label for="mv-as">Asunto <span class="req">*</span></label><textarea id="mv-as" name="asunto" maxlength="600" style="min-height:76px" data-count></textarea><div class="hint"><span data-c>0</span>/600 caracteres</div></div>
+   <div class="pz-sec-h"><span>2</span><h2>Documento</h2></div><div class="form-grid">
+    <div class="field"><label for="mv-tt">Tipo de documento <span class="req">*</span></label><select id="mv-tt" name="tipoTramite"><option value="">Seleccione</option>${c.tipos.map(t => `<option>${esc(t)}</option>`).join('')}</select></div>
+    <div class="field"><label for="mv-ar">Área de destino <span class="req">*</span></label><select id="mv-ar" name="areaDestino">${areaOptions('', { skipMP: true })}</select></div>
     <div class="field"><label for="mv-fo">N.º de folios <span class="req">*</span></label><input id="mv-fo" name="folios" type="number" min="1" max="2000" value="1"></div>
-    <div class="field"><label for="mv-ob">Observaciones (opcional)</label><input id="mv-ob" name="observaciones" maxlength="250"></div>
+    <div class="field full pz-arhint"><div class="hint" data-arhint>La Mesa de Partes Virtual recibe el documento y lo deriva al área seleccionada.</div></div>
+    <div class="field full"><label for="mv-as">Asunto <span class="req">*</span></label><textarea id="mv-as" name="asunto" maxlength="600" style="min-height:76px" data-count placeholder="Describe brevemente lo que solicitas"></textarea><div class="hint"><span data-c>0</span>/600</div></div>
+    <details class="full pz-opt"><summary>Agregar datos opcionales (dirección, N.º de referencia, observaciones)</summary><div class="form-grid">
+     <div class="field"><label for="mv-dir">Dirección</label><input id="mv-dir" name="direccion" maxlength="160" autocomplete="street-address"></div>
+     <div class="field"><label for="mv-ref">N.º o referencia de su documento</label><input id="mv-ref" name="docRef" maxlength="80" placeholder="Ej.: Oficio N.º 012-2026-MPP"></div>
+     <div class="field"><label for="mv-ob">Observaciones</label><input id="mv-ob" name="observaciones" maxlength="250"></div>
+    </div></details>
    </div>
-   <div class="pz-sec-h"><span>3</span><h2>Archivos adjuntos</h2></div>
-    <div class="field"><label for="mv-x">Documento principal y anexos <span class="req">*</span></label><input id="mv-x" type="file" name="archivos" multiple accept="${exts.map(e => '.' + e).join(',')}"><div class="hint">Formatos permitidos: ${exts.map(e => e.toUpperCase()).join(', ')} · tamaño máximo ${c.maxMB} MB por archivo · hasta ${c.maxArchivos} archivos.</div><ul class="pz-files" data-files></ul></div>
-   <div class="pz-sec-h"><span>4</span><h2>Declaración y envío</h2></div>
-    <div class="field"><label class="check"><input type="checkbox" name="declaro"> <span>Declaro que la información y los documentos presentados son veraces (principio de presunción de veracidad, Ley N.º 27444) y acepto ser notificado al correo electrónico registrado. <span class="req">*</span></span></label></div>
-    <div class="field"><label class="check"><input type="checkbox" name="acepto"> <span>Acepto la <a href="#/politica-de-privacidad" target="_blank">Política de Privacidad</a> y el tratamiento de mis datos personales (Ley N.º 29733). <span class="req">*</span></span></label></div>
-    ${captchaHTML('cap-mpv')}
-    <div class="pz-actions"><button type="reset" class="btn ghost">Limpiar</button><button class="btn" data-send>${S16('send')} Registrar y obtener cargo</button></div>
+   <div class="pz-sec-h"><span>3</span><h2>Archivos</h2></div>
+    <div class="field"><label for="mv-x" class="pz-drop">${sic('upload', 26)}<b>Arrastra tus archivos aquí o <u>selecciónalos</u> <span class="req">*</span></b><small>${exts.map(e => e.toUpperCase()).join(', ')} · hasta ${c.maxMB} MB c/u · máximo ${c.maxArchivos} archivos</small><input id="mv-x" type="file" name="archivos" multiple accept="${exts.map(e => '.' + e).join(',')}"></label><ul class="pz-files" data-files></ul></div>
+   <div class="pz-sec-h"><span>4</span><h2>Confirmación</h2></div>
+    <div class="field"><label class="check"><input type="checkbox" name="declaro"> <span>Declaro que la información es veraz (Ley N.º 27444) y acepto ser notificado por correo electrónico. <span class="req">*</span></span></label></div>
+    <div class="field"><label class="check"><input type="checkbox" name="acepto"> <span>Acepto la <a href="#/politica-de-privacidad" target="_blank">Política de privacidad</a> (Ley N.º 29733). <span class="req">*</span></span></label></div>
+    ${mpvRecepcionNota()}
+    <div class="mpv-progress" data-mpv-progress role="status" aria-live="polite" aria-atomic="true" hidden><span class="mpv-spinner" aria-hidden="true"></span><div><strong>Registrando trámite, espera un momento…</strong><p data-mpv-step></p><small>No cierres esta página ni vuelvas a enviar el formulario.</small></div></div>
+    <div class="pz-submit">${captchaHTML('cap-mpv')}<div class="pz-actions"><button class="btn" data-send>${S16('send')} Registrar y obtener cargo</button></div></div>
   </form>`;
 }
 function mpvConsulta() {
-  return `<form class="card cb pz-qf" data-mpvq novalidate><div class="pz-qf-h">${sic('search', 20)}<div><h2>Consultar el estado de mi expediente</h2><small>Ingresa el N.º de expediente de tu cargo y tu DNI/RUC o el código de verificación.</small></div></div><div class="form-grid"><div class="field"><label for="mq-n">N.º de expediente</label><input id="mq-n" name="numero" placeholder="${esc(mpvCfg().prefijo)}-${yearNow()}-000001" autocomplete="off"></div><div class="field"><label for="mq-d">N.º de documento de identidad o código de verificación</label><input id="mq-d" name="doc" placeholder="DNI/RUC o código del cargo" autocomplete="off"></div><div class="full"><button class="btn sec">${S16('search')} Consultar estado</button></div></div><div id="mq-r"></div></form>`;
+  return `<form class="card cb pz-qf" data-mpvq novalidate><div class="pz-qf-h">${sic('search', 20)}<div><h2>Consultar el estado de mi expediente</h2><small>Ingresa el N.º de expediente de tu cargo y tu DNI/RUC o el código de verificación.</small></div></div><div class="form-grid"><div class="field"><label for="mq-n">N.º de expediente</label><input id="mq-n" name="numero" placeholder="${esc(mpvCfg().prefijo)}-${yearNow()}-${pad(1,mpvCfg().digitos||6)}" autocomplete="off"></div><div class="field"><label for="mq-d">N.º de documento de identidad o código de verificación</label><input id="mq-d" name="doc" placeholder="DNI/RUC o código del cargo" autocomplete="off"></div><div class="full"><button class="btn sec">${S16('search')} Consultar estado</button></div></div><div id="mq-r"></div></form>`;
 }
 function mpvInfo() {
   const c = mpvCfg(); const as = areasAll().filter(a => a.activo);
-  return `<section class="card cb" style="padding:20px"><h2 style="font-size:18px;margin-top:0">¿Cómo funciona?</h2><ol class="pz-steps"><li><b>Registra</b> tus datos, el tipo de documento, el área de destino y adjunta tus archivos.</li><li><b>Recibe</b> al instante tu N.º de expediente (${esc(c.prefijo)}-AAAA-NNNNNN), tu N.º de documento (DOC-AAAA-NNNNNN) y el cargo de recepción en PDF.</li><li><b>Mesa de Partes</b> deriva tu documento al área competente. Consulta las novedades en el seguimiento; el envío por correo está pendiente de habilitación.</li><li><b>Consulta</b> el estado en cualquier momento con tu N.º de expediente y tu DNI/RUC o el código de verificación.</li></ol>
+  return `<section class="card cb" style="padding:20px"><h2 style="font-size:18px;margin-top:0">¿Cómo funciona?</h2><ol class="pz-steps"><li><b>Registra</b> tus datos, el tipo de documento, el área de destino y adjunta tus archivos.</li><li><b>Recibe</b> al instante tu N.º de expediente (${esc(c.prefijo)}-AAAA-NNNNNN), tu N.º de documento (DOC-AAAA-NNNNNN) y el cargo de recepción en PDF.</li><li><b>Mesa de Partes</b> deriva tu documento al área competente. Consulta las novedades en el seguimiento. La confirmación de registro se envía por correo cuando el servicio está habilitado.</li><li><b>Consulta</b> el estado en cualquier momento con tu N.º de expediente y tu DNI/RUC o el código de verificación.</li></ol>
    <h3>Tipos de documento admitidos y plazos referenciales</h3><div class="tbl-wrap"><table class="tbl light no-rt"><thead><tr><th>Tipo de documento</th><th class="num">Plazo (días hábiles)</th></tr></thead><tbody>${c.tipos.map(t => `<tr><td>${esc(t)}</td><td class="num">${c.plazos[t] || 10}</td></tr>`).join('')}</tbody></table></div>
    <h3>Recepción fuera del horario</h3><p>Puedes registrar documentos las 24 horas. Los presentados después de las ${fmt12(c.horaFin)}, en sábado, domingo o feriado se consideran recibidos el <b>siguiente día hábil a las ${fmt12(c.horaIni)}</b>; los presentados antes de las ${fmt12(c.horaIni)} de un día hábil, ese mismo día a las ${fmt12(c.horaIni)}. El cargo indica la fecha y hora exacta de presentación y la de recepción administrativa.</p>
+   <h3>Contacto</h3><p>✉️ <a href="mailto:${esc(c.correo)}">${esc(c.correo)}</a> · 📞 ${esc(c.telefono)} (Secretaría de Dirección) · 📍 ${esc(inst().direccion)}</p>
    <h3>Áreas receptoras</h3><div class="tbl-wrap"><table class="tbl light"><thead><tr><th>Nivel</th><th>Área / cargo / órgano</th><th>Correo institucional</th></tr></thead><tbody>${as.map(a => `<tr><td>${esc(a.nivel || '')}</td><td>${esc(a.nombre)}</td><td><a href="mailto:${esc(a.correo)}">${esc(a.correo)}</a></td></tr>`).join('')}</tbody></table></div></section>`;
 }
 R('servicios/mesa-de-partes', (path, q0) => {
   const c = mpvCfg(); const t0 = q0 && q0.get && q0.get('tab'); const cur = t0 === 'consulta' || (q0 && q0.get && q0.get('exp')) ? 'c' : t0 === 'info' ? 'i' : 'n';
-  const body = `${svNav('mesa-de-partes')}${svHead('mpv', [['file', `${c.tipos.length} tipos de documento`], ['upload', `Hasta ${c.maxArchivos} archivos de ${c.maxMB} MB`], ['shield', 'Cargo en PDF con código QR']])}
-   ${horarioBox()}
-   ${svSteps([['Registra', 'Tus datos, el documento y los archivos.'], ['Recibe tu cargo', 'N.º de expediente y cargo en PDF al instante.'], ['Derivación', 'Mesa de Partes lo envía al área competente.'], ['Consulta', 'Sigue el estado con tu N.º de expediente.']])}
+  const body = `${svNav('mesa-de-partes')}<div class="pz-mpv-top">${svHead('mpv', null, true)}${horarioBox(true, true)}</div>
    ${svTabs([['n', 'send', 'Nuevo trámite'], ['c', 'search', 'Consultar expediente'], ['i', 'book', 'Información']], cur)}
    <div data-pane="n" ${cur === 'n' ? '' : 'hidden'}>${mpvForm()}</div><div data-pane="c" ${cur === 'c' ? '' : 'hidden'}>${mpvConsulta()}</div><div data-pane="i" ${cur === 'i' ? '' : 'hidden'}>${mpvInfo()}</div>`;
-  const side = `<section class="side-box"><h2>Contacto</h2><div class="pad" style="font-size:13.5px">✉️ <a href="mailto:${esc(c.correo)}">${esc(c.correo)}</a><br>📞 ${esc(c.telefono)} (Secretaría de Dirección)<br>📍 ${esc(inst().direccion)}</div></section><section class="side-box"><h2>Numeración</h2><div class="pad" style="font-size:13px">Expediente: <b class="mono">${esc(c.prefijo)}-${yearNow()}-000001</b><br>Documento: <b class="mono">DOC-${yearNow()}-000001</b><br><span style="color:var(--muted)">Únicos, correlativos y reiniciados cada año.</span></div></section>`;
+  const side = null;
   const html = shell(path, { title: 'Mesa de Partes Virtual', desc: `Mesa de Partes Virtual del ${inst().nombre}: registro de documentos, cargo de recepción y seguimiento de expedientes.`, crumbs: [['Servicios', '#/servicios'], ['Mesa de Partes Virtual']], banner: { kicker: 'Servicios en línea', title: 'Mesa de Partes Virtual', text: 'Tus trámites en línea, con cargo de recepción inmediato' }, side, body });
   return { html, after: () => bindMpv(q0) };
 });
@@ -7208,16 +7281,16 @@ function bindMpv(q0) {
   const c = mpvCfg();
   const showTab = k => { $$('.pz-mt [data-tab]').forEach(x => x.setAttribute('aria-selected', x.dataset.tab === k)); $$('[data-pane]').forEach(p => p.hidden = p.dataset.pane !== k); };
   $$('.pz-mt [data-tab]').forEach(b => b.onclick = () => showTab(b.dataset.tab));
-  const f = $('[data-mpv]');
+  const f = $('[data-mpv]'); let busy=false,pending=null;
   const syncTipo = () => { const jur = f.tipoPersona.value !== 'Persona natural'; $$('[data-nat]', f).forEach(x => x.hidden = jur); $$('[data-jur]', f).forEach(x => x.hidden = !jur); if (jur && f.tipoDoc.value === 'DNI') f.tipoDoc.value = 'RUC'; if (!jur && f.tipoDoc.value === 'RUC') f.tipoDoc.value = 'DNI'; };
-  f.tipoPersona.onchange = syncTipo;
+  $$('[name="tipoPersona"]', f).forEach(x => x.onchange = syncTipo);
   f.areaDestino.onchange = () => { const a = areaOf(f.areaDestino.value); $('[data-arhint]', f).innerHTML = a ? `Responsable: <b>${esc(a.resp)}</b> · <a href="mailto:${esc(a.correo)}">${esc(a.correo)}</a>` : 'La Mesa de Partes Virtual recibe el documento y lo deriva al área seleccionada.'; };
   $$('[data-count]', f).forEach(t => t.addEventListener('input', () => { t.parentNode.querySelector('[data-c]').textContent = t.value.length; }));
   const listFiles = () => { const fs = [...f.archivos.files]; $('[data-files]', f).innerHTML = fs.map(x => { const e = checkUpload(x, c.formatos, c.maxMB); return `<li class="${e ? 'bad' : ''}">${S16(e ? 'alert' : 'file')} <span>${esc(x.name)}</span> <small>${fsize(x.size)}</small>${e ? `<em>${esc(e)}</em>` : ''}</li>`; }).join(''); };
   f.archivos.onchange = listFiles;
   f.addEventListener('reset', () => setTimeout(() => { $('[data-files]', f).innerHTML = ''; $$('[data-c]', f).forEach(x => x.textContent = '0'); syncTipo(); }, 0));
   f.onsubmit = async e => {
-    e.preventDefault(); const v = Object.fromEntries(new FormData(f)); const er = {}; const jur = v.tipoPersona !== 'Persona natural';
+    e.preventDefault(); if(busy)return; const v = Object.fromEntries(new FormData(f)); const er = {}; const jur = v.tipoPersona !== 'Persona natural';
     const de = validDoc(v.tipoDoc, v.numDoc); if (!v.numDoc) er.numDoc = 'Ingrese el número de documento.'; else if (de) er.numDoc = de;
     if (jur) { if (String(v.razon).trim().length < 3) er.razon = 'Ingrese la razón social o el nombre de la entidad.'; }
     else { if (String(v.nombresP).trim().length < 2) er.nombresP = 'Ingrese sus nombres.'; if (String(v.apellidos).trim().length < 2) er.apellidos = 'Ingrese sus apellidos.'; }
@@ -7236,31 +7309,40 @@ function bindMpv(q0) {
     const cap = checkCaptcha(f, 'cap-mpv'); if (cap) er.captcha = cap;
     if (!showErrors(f, er)) return;
     if (rateLimited('mpv', 20)) return toast('Espere unos segundos antes de registrar otro documento.', 'err');
-    const btn = $('[data-send]', f); btn.disabled = true; btn.textContent = 'Registrando…';
+    const btn = $('[data-send]', f),progress=$('[data-mpv-progress]',f),step=$('[data-mpv-step]',f);
+    const signature=JSON.stringify([v,files.map(file=>[file.name,file.size,file.lastModified])]);
+    if(!pending||pending.signature!==signature)pending={signature,key:crypto.randomUUID(),record:null};
+    busy=true;const controls=[...f.elements,...$$('.pz-mt [data-tab]')].map(el=>[el,el.disabled]);
+    controls.forEach(([el])=>el.disabled=true);f.setAttribute('aria-busy','true');progress.hidden=false;progress.scrollIntoView({block:'nearest'});
+    btn.textContent='Registrando, espera un momento…';portalSubmissionStatus('Registrando trámite. Espera un momento y no cierres la página.');
+    const preventLeave=event=>{event.preventDefault();event.returnValue='';};window.addEventListener('beforeunload',preventLeave);
     try {
-      const archivos = []; for (const x of files) archivos.push(await storeFile(x, 'mpv'));
-      const fecha = nowISO(); const rec = recepcionDe(fecha); const y = String(new Date(fecha).getFullYear());
-      const C = DB.config.contadores; C.MPV[y] = (C.MPV[y] || 0) + 1; C.DOC[y] = (C.DOC[y] || 0) + 1;
-      let numero = `${c.prefijo}-${y}-${pad(C.MPV[y], 6)}`, numDocumento = `DOC-${y}-${pad(C.DOC[y], 6)}`;
-      const u = currentUser(); const nombres = jur ? v.razon.trim() : `${v.nombresP.trim()} ${v.apellidos.trim()}`;
-      const x = { id: uid(), numero, numDocumento, fecha, fechaRecepcion: rec.fecha.toISOString(), enHorario: rec.enHorario, usuarioRegistro: u ? `${u.usuario} (${u.nombre})` : `Ciudadano – portal web (${v.tipoDoc} ${v.numDoc.trim()})`, canal: 'Mesa de Partes Virtual',
-        tipoPersona: v.tipoPersona, nombres, nombresP: jur ? '' : v.nombresP.trim(), apellidos: jur ? '' : v.apellidos.trim(), tipoDoc: v.tipoDoc, numDoc: v.numDoc.trim(), correo: v.correo.trim(), telefono: v.telefono.trim(), direccion: (v.direccion || '').trim(),
-        tipoTramite: v.tipoTramite, docRef: (v.docRef || '').trim(), asunto: v.asunto.trim(), folios: +v.folios, observaciones: (v.observaciones || '').trim(), archivos, archivo: archivos[0], areaDestino: v.areaDestino, area: 'MP', estado: 'Recibido',
-        historial: [{ fecha, usuario: 'portal', estado: 'Recibido', nota: `Presentado por la Mesa de Partes Virtual. Recepción administrativa: ${fshort(rec.fecha, true)}${rec.enHorario ? '' : ' (fuera del horario de atención)'}. Área de destino: ${areaName(v.areaDestino)}.` }] };
-      expCargoCod(x); coll('expedientes').unshift(x);
-      if (!saveDB()) return;
-      numero = x.numero; numDocumento = x.numDocumento;
-      mailOut(x.correo, `Cargo de recepción ${numero}`, `Su documento ${numDocumento} (${x.tipoTramite}) fue registrado el ${fshort(fecha, true)}; recepción administrativa: ${fshort(rec.fecha, true)}. Código de verificación: ${x.cargoCod}.`);
-      mailOut(c.correo, `[${numero}] Nuevo documento: ${x.tipoTramite}`, `${x.nombres} · ${x.asunto} · Destino: ${areaName(x.areaDestino)}`);
-      audit('Registro', 'Mesa de partes', numero, `${x.tipoTramite} · destino ${x.areaDestino} · ${archivos.length} archivo(s)`); saveDB();
+      // Cede el control para dibujar el aviso antes de iniciar la carga.
+      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+      let x=pending.record;
+      if(!x){
+        const archivos = []; for (const file of files){step.textContent=`Subiendo archivos: ${archivos.length+1} de ${files.length}.`;portalSubmissionStatus(step.textContent);archivos.push(await storeFile(file,'mpv'));}
+        const fecha = nowISO(); const rec = recepcionDe(fecha);
+        const numero='',numDocumento='';
+        const u = currentUser(); const nombres = jur ? v.razon.trim() : `${v.nombresP.trim()} ${v.apellidos.trim()}`;
+        x = { id: uid(), numero, numDocumento, fecha, fechaRecepcion: rec.fecha.toISOString(), enHorario: rec.enHorario, usuarioRegistro: u ? `${u.usuario} (${u.nombre})` : `Ciudadano – portal web (${v.tipoDoc} ${v.numDoc.trim()})`, canal: 'Mesa de Partes Virtual',
+          tipoPersona: v.tipoPersona, nombres, nombresP: jur ? '' : v.nombresP.trim(), apellidos: jur ? '' : v.apellidos.trim(), tipoDoc: v.tipoDoc, numDoc: v.numDoc.trim(), correo: v.correo.trim(), telefono: v.telefono.trim(), direccion: (v.direccion || '').trim(),
+          tipoTramite: v.tipoTramite, docRef: (v.docRef || '').trim(), asunto: v.asunto.trim(), folios: +v.folios, observaciones: (v.observaciones || '').trim(), archivos, archivo: archivos[0], areaDestino: v.areaDestino, area: 'MP', estado: 'Recibido',
+          historial: [{ fecha, usuario: 'portal', estado: 'Recibido', nota: `Presentado por la Mesa de Partes Virtual. Recepción administrativa: ${fshort(rec.fecha, true)}${rec.enHorario ? '' : ' (fuera del horario de atención)'}. Área de destino: ${areaName(v.areaDestino)}.` }] };
+        pending.record=x;
+      }
+      step.textContent='Guardando el trámite y preparando tu cargo. Este paso puede tardar unos segundos mientras se procesan las notificaciones.';
+      portalSubmissionStatus('Guardando el trámite y preparando tu cargo.');await portalSubmitExpediente(x,pending.key);portalSubmissionStatus('Trámite registrado. Ya puedes descargar tu cargo.');
+      const numero=x.numero,numDocumento=x.numDocumento;
+      pending=null;
       f.reset();
       const m = modal({ title: 'Documento registrado', size: 'lg', body: `<div class="notice ok">Tu documento fue <b>recibido por la Mesa de Partes Virtual</b>.</div>
         <div class="pz-codes"><div><span>N.º de expediente</span><b class="mono">${esc(numero)}</b></div><div><span>N.º de documento</span><b class="mono">${esc(numDocumento)}</b></div><div><span>Código de verificación</span><b class="mono">${esc(x.cargoCod || '—')}</b></div></div>
-        <dl class="kv"><dt>Fecha y hora de presentación</dt><dd>${fdate(fecha, true)}</dd><dt>Fecha y hora de recepción</dt><dd>${fdate(rec.fecha, true)}${rec.enHorario ? '' : ' <span class="badge warn">Fuera de horario: siguiente día hábil</span>'}</dd><dt>Área de destino</dt><dd>${esc(areaName(x.areaDestino))}</dd><dt>Plazo referencial</dt><dd>${c.plazos[x.tipoTramite] || 10} días hábiles</dd></dl>
+        <dl class="kv"><dt>Fecha y hora de presentación</dt><dd>${fdate(x.fecha, true)}</dd><dt>Fecha y hora de recepción</dt><dd>${fdate(x.fechaRecepcion, true)}${x.enHorario ? '' : ' <span class="badge warn">Fuera de horario: siguiente día hábil</span>'}</dd><dt>Área de destino</dt><dd>${esc(areaName(x.areaDestino))}</dd><dt>Plazo referencial</dt><dd>${c.plazos[x.tipoTramite] || 10} días hábiles</dd></dl>
         <p>Descarga y conserva tu cargo. Correo de contacto: <b>${esc(x.correo)}</b>.</p>`, foot: `<a class="btn ghost" href="${esc('#/servicios/mesa-de-partes?exp=' + numero + '&c=' + (x.cargoCod || ''))}" data-seg>Ver seguimiento</a>${cargoBtn(x)}` });
       $('[data-seg]', m.el).onclick = () => m.close();
-    } catch (err) { console.error(err); toast('No se pudo registrar el documento. Intente nuevamente.', 'err'); }
-    finally { btn.disabled = false; btn.innerHTML = `${S16('send')} Registrar y obtener cargo`; }
+    } catch (err) {const message=err.message||'No se pudo confirmar el registro. Conserva los datos y vuelve a intentar el mismo envío.';toast(message,'err');portalSubmissionStatus(message);}
+    finally {busy=false;controls.forEach(([el,disabled])=>el.disabled=disabled);f.removeAttribute('aria-busy');progress.hidden=true;window.removeEventListener('beforeunload',preventLeave);btn.innerHTML=`${S16('send')} Registrar y obtener cargo`;}
   };
   const q = $('[data-mpvq]');
   const findExp = (n, d) => portalLookup('expedientes', String(n || '').trim().toUpperCase(), String(d || '').trim());
@@ -7320,7 +7402,7 @@ cargoExp = async function (id) {
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(50);
   [`La recepción no implica la conformidad con el contenido del documento. El trámite será atendido por el área de destino dentro del plazo de ${c.plazos[x.tipoTramite] || EXP_PLAZOS[x.tipoTramite] || 10} días hábiles, contados desde la fecha de recepción.`,
    `Consulte el estado escaneando el código QR o en Mesa de Partes Virtual › Consultar expediente, con el N.° ${x.numero} y su documento de identidad o el código ${x.cargoCod}.`,
-   'El envío de notificaciones por correo está pendiente de habilitación; consulte el seguimiento del expediente.'].forEach(s => { const t = doc.splitTextToSize('• ' + s, tw); doc.text(t, tx, ty); ty += 3.6 * t.length + .6; });
+   'La confirmación por correo depende de la disponibilidad del servicio; conserve este cargo y consulte el seguimiento del expediente.'].forEach(s => { const t = doc.splitTextToSize('• ' + s, tw); doc.text(t, tx, ty); ty += 3.6 * t.length + .6; });
   pdfPie(doc);
   downloadBlob(doc.output('blob'), 'cargo_' + x.numero + '.pdf'); audit('Descarga de cargo', 'Mesa de partes', x.numero); saveDB();
   toast('Cargo de recepción descargado.', 'ok');
@@ -7354,8 +7436,8 @@ expDetalle = function (id) {
       <h3 style="margin-top:14px">Asunto</h3><div class="card cb" style="white-space:pre-wrap">${esc(x.asunto)}</div>${x.observaciones ? `<p><b>Observaciones:</b> ${esc(x.observaciones)}</p>` : ''}
       <h3 style="margin-top:14px">Archivos adjuntos (${archivos.length})</h3>${archivos.length ? `<ul class="pz-files">${archivos.map((a, i) => `<li>${S16('file')} <span>${esc(a.original || a.nombre)}</span> <small>${fsize(a.size)}</small><button class="btn xs sec" data-dl="${i}">${sic('download', 13)} Descargar</button>${a.sha256 ? `<code title="SHA-256">${esc(a.sha256.slice(0, 16))}…</code>` : ''}</li>`).join('')}</ul>` : '<p>Sin archivos.</p>'}</div></div>
       <div class="panel"><h2>Historial y seguimiento</h2><div class="pb">${histHTML(x.historial)}</div></div></div>
-    <div style="display:grid;gap:16px;align-content:start"><div class="panel"><h2>Derivar a un área</h2><div class="pb" style="display:grid;gap:10px"><div class="field"><label for="xa">Área receptora</label><select id="xa">${areaOptions(x.area === 'MP' ? (x.areaDestino || '') : x.area, { placeholder: 'Seleccione el área' })}</select></div><div class="field"><label for="xan">Proveído / indicación</label><input id="xan" class="inp" placeholder="Ej.: Para su atención y trámite correspondiente"></div><label class="check"><input type="checkbox" id="xam" disabled> Correo pendiente de configuración</label><button class="btn" data-xa>${sic('send')} Derivar expediente</button></div></div>
-      <div class="panel"><h2>Actualizar estado</h2><div class="pb" style="display:grid;gap:10px"><div class="field"><label for="xs">Nuevo estado</label><select id="xs">${EXP_STATES.map(s => `<option ${s === x.estado ? 'selected' : ''}>${s}</option>`).join('')}</select></div><div class="field"><label for="xn">Nota / respuesta</label><textarea id="xn" class="inp" rows="3"></textarea></div><label class="check"><input type="checkbox" id="xm" disabled> Correo pendiente de configuración</label><button class="btn sec" data-xs>Guardar estado</button></div></div>
+    <div style="display:grid;gap:16px;align-content:start"><div class="panel"><h2>Derivar a un área</h2><div class="pb" style="display:grid;gap:10px"><div class="field"><label for="xa">Área receptora</label><select id="xa">${areaOptions(x.area === 'MP' ? (x.areaDestino || '') : x.area, { placeholder: 'Seleccione el área' })}</select></div><div class="field"><label for="xan">Proveído / indicación</label><input id="xan" class="inp" placeholder="Ej.: Para su atención y trámite correspondiente"></div><label class="check"><input type="checkbox" id="xam" checked> Enviar aviso por correo al solicitante y al área receptora</label><button class="btn" data-xa>${sic('send')} Derivar expediente</button></div></div>
+      <div class="panel"><h2>Actualizar estado</h2><div class="pb" style="display:grid;gap:10px"><div class="field"><label for="xs">Nuevo estado</label><select id="xs">${EXP_STATES.map(s => `<option ${s === x.estado ? 'selected' : ''}>${s}</option>`).join('')}</select></div><div class="field"><label for="xn">Nota / respuesta</label><textarea id="xn" class="inp" rows="3"></textarea></div><label class="check"><input type="checkbox" id="xm" checked> Enviar aviso por correo al solicitante</label><button class="btn sec" data-xs>Guardar estado</button></div></div>
       <div class="panel"><h2>Plazo</h2><div class="pb meta-list"><span>Tipo: ${esc(x.tipoTramite)} · ${(mpvCfg().plazos[x.tipoTramite] || EXP_PLAZOS[x.tipoTramite] || 10)} días hábiles</span><span>Vence: <b>${fdate(expPlazo(x).due)}</b></span><span>${expSem(x)}</span></div></div></div></div>`;
   return {
     html, after: () => {
@@ -7365,14 +7447,14 @@ expDetalle = function (id) {
       $('[data-xa]').onclick = () => {
         const v = $('#xa').value; if (!v) return toast('Seleccione el área.', 'err'); if (v === x.area) return toast('El expediente ya se encuentra en esa área.', 'err');
         const a = areaOf(v); const prov = $('#xan').value.trim(); const n = `Derivado a ${areaName(v)}${prov ? ': ' + prov : ''}`;
-        x.area = v; if (['Recibido', 'Observado'].includes(x.estado)) x.estado = 'Derivado';
+        x.area = v; if (['Recibido', 'Observado'].includes(x.estado)) x.estado = 'Derivado'; if ($('#xam').checked) delete x.sinAviso; else x.sinAviso = true;
         x.historial.push({ fecha: nowISO(), usuario: me, estado: x.estado, nota: n });
         if ($('#xam').checked) { if (a) mailOut(a.correo, `[${x.numero}] Expediente derivado: ${x.tipoTramite}`, `${x.nombres} · ${x.asunto}${prov ? ' · Proveído: ' + prov : ''}`); mailOut(x.correo, `Expediente ${x.numero}: derivado`, `Su documento fue derivado a ${areaName(v)}.`); }
-        audit('Derivación', 'Mesa de partes', x.numero, n); stamp(x); if (saveDB()) { toast('Expediente derivado. El envío por correo está pendiente de configuración.', 'ok'); route(); }
+        audit('Derivación', 'Mesa de partes', x.numero, n); stamp(x); if (saveDB()) { toast($('#xam').checked ? 'Expediente derivado. Avisos registrados para el solicitante y el área receptora.' : 'Expediente derivado sin aviso por correo.', 'ok'); route(); }
       };
       $('[data-xs]').onclick = () => {
         const v = $('#xs').value, n = $('#xn').value.trim(); if (v === x.estado && !n) return toast('Seleccione otro estado o escriba una nota.', 'err'); if (['Observado', 'Atendido'].includes(v) && !n) return toast(v === 'Observado' ? 'Indique la observación.' : 'Registre la respuesta o el detalle de la atención.', 'err');
-        x.historial.push({ fecha: nowISO(), usuario: me, estado: v, nota: n }); audit(`Cambio de estado: ${x.estado} → ${v}`, 'Mesa de partes', x.numero, n); x.estado = v; stamp(x);
+        x.historial.push({ fecha: nowISO(), usuario: me, estado: v, nota: n }); audit(`Cambio de estado: ${x.estado} → ${v}`, 'Mesa de partes', x.numero, n); x.estado = v; if (!$('#xm') || $('#xm').checked) delete x.sinAviso; else x.sinAviso = true; stamp(x);
         if ($('#xm').checked) mailOut(x.correo, `Expediente ${x.numero}: ${v}`, n || 'Su expediente cambió de estado.'); if (saveDB()) { toast('Estado actualizado.', 'ok'); route(); }
       };
     }
@@ -7381,32 +7463,38 @@ expDetalle = function (id) {
 function mpvAreasAdm() {
   const as = areasAll();
   const html = admHead('Mesa de partes virtual', 'Relación de áreas receptoras, responsables y correos configurados por la institución.', can('ix-config') ? `<a class="btn" href="#/admin/ix-config">${sic('edit')} Editar áreas</a>` : '', 'inbox', [['Mesa de partes', '#/admin/expedientes'], ['Áreas receptoras']]) + mpTabs('a')
-    + `<div class="panel"><div class="tbl-wrap" style="border:0"><table class="tbl light"><thead><tr><th>Nivel / clasificación</th><th>Código</th><th>Área / cargo / órgano</th><th>Responsable</th><th>Correo corporativo</th><th class="c">Expedientes abiertos</th><th class="c">Estado</th></tr></thead><tbody>${NIVELES.map(n => as.filter(a => (a.nivel || 'Áreas') === n).map((a, i, g) => `<tr>${i === 0 ? `<td rowspan="${g.length}" style="font-weight:700;vertical-align:middle">${esc(n)}</td>` : ''}<td class="mono">${esc(a.cod)}</td><td>${esc(a.nombre)}</td><td>${esc(a.resp)}</td><td><a href="mailto:${esc(a.correo)}">${esc(a.correo)}</a></td><td class="c">${coll('expedientes').filter(x => x.area === a.cod && !['Atendido', 'Archivado'].includes(x.estado)).length}</td><td class="c">${stBadge(a.activo ? 'Activo' : 'Inactivo')}</td></tr>`).join('')).join('')}</tbody></table></div><p class="note" style="padding:0 16px 14px">Las áreas se administran en Configuración académica › Áreas receptoras; los cambios se reflejan en el formulario público y en las derivaciones.</p></div>`;
+    + `<div class="panel"><div class="tbl-wrap" style="border:0"><table class="tbl light"><thead><tr><th>Nivel / clasificación</th><th>Código</th><th>Área / cargo / órgano</th><th>Responsable</th><th>Correo corporativo</th><th class="c">Expedientes abiertos</th><th class="c">Estado</th></tr></thead><tbody>${areaLevels(as).map(n => as.filter(a => areaLevel(a) === n).map((a, i, g) => `<tr>${i === 0 ? `<td rowspan="${g.length}" style="font-weight:700;vertical-align:middle">${esc(n)}</td>` : ''}<td class="mono">${esc(a.cod)}</td><td>${esc(a.nombre)}</td><td>${esc(a.resp)}</td><td><a href="mailto:${esc(a.correo)}">${esc(a.correo)}</a></td><td class="c">${coll('expedientes').filter(x => x.area === a.cod && !['Atendido', 'Archivado'].includes(x.estado)).length}</td><td class="c">${stBadge(a.activo ? 'Activo' : 'Inactivo')}</td></tr>`).join('')).join('')}</tbody></table></div><p class="note" style="padding:0 16px 14px">Las áreas se administran en Configuración académica › Áreas receptoras; los cambios se reflejan en el formulario público y en las derivaciones.</p></div>`;
   return { html };
 }
 function mpvConfigAdm() {
-  const c = mpvCfg(); const canEdit = currentUser().rol === 'admin' || can('config');
+  const c = mpvCfg(); const canEdit = currentUser().rol === 'admin' || can('config'); const year=String(portalBootstrap.numberingYear||yearNow()); const next=(DB.config.contadores.MPV[year]||0)+1;
   const html = admHead('Mesa de partes virtual', 'Horario de atención, tipos de documento admitidos, formatos y tamaño de archivos, feriados y plazos de atención.', '', 'inbox', [['Mesa de partes', '#/admin/expedientes'], ['Configuración']]) + mpTabs('c')
     + `<form class="panel" data-mpvcfg><div class="pb"><div class="form-grid">
+      <div class="field full"><h3>Código y correlativo del expediente</h3><p class="note">Formato: CÓDIGO-AÑO-CORRELATIVO. Se aplica a nuevos expedientes; los anteriores conservan su número. La secuencia es anual.</p></div>
+      <div class="field"><label for="mc-prefix">Código / prefijo del expediente</label><input id="mc-prefix" name="prefijo" required maxlength="40" pattern="[A-Z0-9][A-Z0-9-]{0,39}" value="${esc(c.prefijo)}"></div>
+      <div class="field"><label for="mc-digits">Dígitos del correlativo</label><input id="mc-digits" name="digitos" type="number" required min="1" max="9" value="${c.digitos||6}"><small>Se completa con ceros a la izquierda, sin truncar el número.</small></div>
+      <div class="field"><label for="mc-next">Siguiente correlativo (${year})</label><input id="mc-next" name="siguiente" type="number" required min="${next}" max="999999999" value="${next}"><small>Puedes avanzar la secuencia, pero no retroceder a números ya utilizados.</small></div>
+      <div class="field full"><span>Vista previa: <b class="mono" data-number-preview></b></span></div>
       <div class="field"><label for="mc-d">Días de atención</label><input id="mc-d" name="dias" value="${esc(c.dias)}"></div>
       <div class="field"><label for="mc-i">Hora de inicio</label><input id="mc-i" name="horaIni" type="time" value="${esc(c.horaIni)}"></div>
       <div class="field"><label for="mc-f">Hora de cierre</label><input id="mc-f" name="horaFin" type="time" value="${esc(c.horaFin)}"></div>
       <div class="field"><label for="mc-m">Tamaño máximo por archivo (MB)</label><input id="mc-m" name="maxMB" type="number" min="1" max="100" value="${c.maxMB}"></div>
       <div class="field"><label for="mc-n">Máximo de archivos por trámite</label><input id="mc-n" name="maxArchivos" type="number" min="1" max="10" value="${c.maxArchivos}"></div>
-      <div class="field"><label for="mc-c">Correo de Mesa de Partes</label><input id="mc-c" name="correo" type="email" value="${esc(c.correo)}"></div>
+      <div class="field"><label for="mc-c">Correo de Mesa de Partes</label><input id="mc-c" name="correo" type="email" required maxlength="254" value="${esc(c.correo)}"></div>
       <div class="field full"><span class="lbl">Formatos permitidos</span><div style="display:flex;gap:14px;flex-wrap:wrap">${MPV_FORMATOS.map(([k, l]) => `<label class="check"><input type="checkbox" name="fmt" value="${k}" ${c.formatos.includes(k) ? 'checked' : ''}> ${l}</label>`).join('')}</div></div>
       <div class="field"><label for="mc-t">Tipos de documento (uno por línea)</label><textarea id="mc-t" name="tipos" rows="13">${esc(c.tipos.join('\n'))}</textarea></div>
       <div class="field"><label for="mc-p">Plazo de atención por tipo (días hábiles, “Tipo = días”)</label><textarea id="mc-p" name="plazos" rows="13">${esc(c.tipos.map(t => `${t} = ${c.plazos[t] || 10}`).join('\n'))}</textarea></div>
       <div class="field full"><label for="mc-h">Feriados y días no laborables (AAAA-MM-DD, uno por línea)</label><textarea id="mc-h" name="feriados" rows="5">${esc(c.feriados.join('\n'))}</textarea><div class="hint">Los documentos presentados en estas fechas se consideran recibidos el siguiente día hábil.</div></div>
-      <div class="full" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><span class="note">Numeración: <b class="mono">${esc(c.prefijo)}-${yearNow()}-${pad((DB.config.contadores.MPV[String(yearNow())] || 0) + 1, 6)}</b> (siguiente) · <b class="mono">DOC-${yearNow()}-${pad((DB.config.contadores.DOC[String(yearNow())] || 0) + 1, 6)}</b></span>${canEdit ? '<button class="btn">Guardar configuración</button>' : '<span class="note">Solo el administrador puede modificar esta configuración.</span>'}</div>
+      <div class="full" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><span class="note">Numeración: <b class="mono">${esc(c.prefijo)}-${year}-${pad(next, c.digitos||6)}</b> (siguiente) · <b class="mono">DOC-${yearNow()}-${pad((DB.config.contadores.DOC[String(yearNow())] || 0) + 1, 6)}</b></span>${canEdit ? '<button class="btn">Guardar configuración</button>' : '<span class="note">Solo el administrador puede modificar esta configuración.</span>'}</div>
     </div></div></form>`;
-  return { html, after: () => { const f = $('[data-mpvcfg]'); f.onsubmit = e => { e.preventDefault(); if (!canEdit) return;
+  return { html, after: () => { const f = $('[data-mpvcfg]'); const preview=()=>{f.querySelector('[data-number-preview]').textContent=f.prefijo.value+'-'+year+'-'+String(f.siguiente.value).padStart(Math.max(1,Math.min(9,+f.digitos.value||6)),'0');};for(const name of ['prefijo','digitos','siguiente'])f.elements[name].addEventListener('input',preview);preview(); f.onsubmit = e => { e.preventDefault(); if (!canEdit) return;
     const tipos = f.tipos.value.split('\n').map(s => s.trim()).filter(Boolean); if (!tipos.length) return toast('Registre al menos un tipo de documento.', 'err');
     const fmts = $$('[name="fmt"]:checked', f).map(i => i.value); if (!fmts.length) return toast('Seleccione al menos un formato.', 'err');
     if (hm(f.horaFin.value) <= hm(f.horaIni.value)) return toast('La hora de cierre debe ser posterior a la de inicio.', 'err');
     const fer = f.feriados.value.split('\n').map(s => s.trim()).filter(Boolean); const bad = fer.find(s => !/^\d{4}-\d{2}-\d{2}$/.test(s)); if (bad) return toast('Fecha de feriado no válida: ' + bad, 'err');
     const plazos = {}; f.plazos.value.split('\n').forEach(l => { const m = l.split('='); if (m.length === 2 && +m[1] > 0) plazos[m[0].trim()] = Math.round(+m[1]); }); tipos.forEach(t => { if (!plazos[t]) plazos[t] = 10; });
-    Object.assign(c, { dias: f.dias.value.trim() || 'Lunes a viernes', horaIni: f.horaIni.value, horaFin: f.horaFin.value, maxMB: Math.max(1, +f.maxMB.value || 40), maxArchivos: Math.max(1, +f.maxArchivos.value || 5), correo: f.correo.value.trim(), formatos: fmts, tipos, plazos, feriados: fer });
+    DB.config.contadores.MPV[year]=Number(f.siguiente.value)-1;
+    Object.assign(c, { prefijo:f.prefijo.value.trim(),digitos:Number(f.digitos.value),dias: f.dias.value.trim() || 'Lunes a viernes', horaIni: f.horaIni.value, horaFin: f.horaFin.value, maxMB: Math.max(1, +f.maxMB.value || 40), maxArchivos: Math.max(1, +f.maxArchivos.value || 5), correo: f.correo.value.trim(), formatos: fmts, tipos, plazos, feriados: fer });
     Object.assign(EXP_PLAZOS, plazos); audit('Configuración', 'Mesa de partes', 'Horario, tipos, formatos y plazos'); if (saveDB()) { toast('Configuración de la Mesa de Partes guardada.', 'ok'); route(); } }; } };
 }
 
@@ -7420,9 +7508,8 @@ function lrForm() {
   return `<form class="pz-lr card" data-lr2 novalidate>
    <div class="pz-lr-h">${ic('book')}<div><h2>Registro de reclamo o queja</h2><small>Los campos marcados con * son obligatorios.</small></div></div>
    <div class="cb" style="padding:20px">
-    <h3 class="pz-sub">${S16('user')} Datos del usuario</h3><div class="form-grid">
-     <div class="field"><label for="l2-td">Tipo de documento <span class="req">*</span></label><select id="l2-td" name="tipoDoc"><option value="">Seleccione</option><option>DNI</option><option value="CE">Carné de extranjería</option><option>Pasaporte</option><option>RUC</option></select></div>
-     <div class="field"><label for="l2-nd">Número de documento <span class="req">*</span></label><input id="l2-nd" name="numDoc" maxlength="12" placeholder="Ingrese su documento" autocomplete="off"></div>
+    <h3 class="pz-sub">${S16('user')} Datos del usuario</h3><div class="form-grid g4">
+     <div class="field"><label for="l2-nd">Documento de identidad <span class="req">*</span></label><div class="pz-docpair"><select id="l2-td" name="tipoDoc" aria-label="Tipo de documento"><option value="">Tipo</option><option>DNI</option><option value="CE">Carné de extranjería</option><option>Pasaporte</option><option>RUC</option></select><input id="l2-nd" name="numDoc" maxlength="12" placeholder="Número" autocomplete="off" aria-label="Número de documento"></div></div>
      <div class="field"><label for="l2-no">Nombres <span class="req">*</span></label><input id="l2-no" name="nombresP" maxlength="80" placeholder="Ingrese sus nombres" autocomplete="given-name"></div>
      <div class="field"><label for="l2-ap">Apellidos <span class="req">*</span></label><input id="l2-ap" name="apellidos" maxlength="80" placeholder="Ingrese sus apellidos" autocomplete="family-name"></div>
      <div class="field"><label for="l2-e">Correo electrónico <span class="req">*</span></label><input id="l2-e" name="correo" type="email" maxlength="120" placeholder="correo@ejemplo.com" autocomplete="email"></div>
@@ -7439,30 +7526,29 @@ function lrForm() {
      <div class="field"><label for="l2-ar">Área o servicio involucrado</label><select id="l2-ar" name="areaHecho">${areaOptions('', { skipMP: false, placeholder: 'No sé / no aplica' })}</select></div>
      <div class="field full"><label for="l2-d">Descripción de los hechos <span class="req">*</span></label><textarea id="l2-d" name="descripcion" maxlength="${lim}" placeholder="Describa detalladamente lo sucedido..." data-count></textarea><div class="hint"><span data-c>0</span>/${lim} caracteres · máximo ${lim} caracteres</div></div>
      <div class="field full"><label for="l2-pe">Pedido concreto <span class="req">*</span></label><textarea id="l2-pe" name="pedido" maxlength="${L.pedido || 1000}" placeholder="Indique qué solución o atención solicita..." style="min-height:80px" data-count></textarea><div class="hint"><span data-c>0</span>/${L.pedido || 1000} caracteres</div></div>
-     <div class="field full"><label for="l2-x">Documento o evidencia <small style="font-weight:400;color:var(--muted)">(opcional)</small></label><input id="l2-x" type="file" name="adjunto" accept=".pdf,.jpg,.jpeg,.png"><div class="hint">Formatos permitidos: PDF, JPG y PNG · máx. 5 MB.</div></div>
+     <div class="field full"><span class="lbl">Documento o evidencia <small style="font-weight:400;color:var(--muted)">(opcional)</small></span><label for="l2-x" class="pz-drop">${sic('upload', 26)}<b>Arrastra tu archivo aquí o <u>selecciónalo</u></b><small>PDF, JPG o PNG · máx. 5 MB</small><input id="l2-x" type="file" name="adjunto" accept=".pdf,.jpg,.jpeg,.png"></label><div class="hint" data-l2-file></div></div>
     </div>
     <div class="field pz-decl"><label class="check"><input type="checkbox" name="declaro"> <span>Declaro que la información proporcionada es verdadera y corresponde a los hechos que deseo comunicar. <span class="req">*</span></span></label></div>
     <div class="field"><label class="check"><input type="checkbox" name="acepto"> <span>Acepto la <a href="#/politica-de-privacidad" target="_blank">Política de Privacidad</a> y el tratamiento de mis datos personales (Ley N.º 29733). <span class="req">*</span></span></label></div>
-    ${captchaHTML('cap-lr2')}
-    <div class="pz-actions"><button type="reset" class="btn ghost">${S16('back')} Cancelar</button><button class="btn" data-send>${S16('send')} Enviar reclamo</button></div>
+    <div class="mpv-progress" data-lr-progress role="status" aria-live="polite" hidden><span class="mpv-spinner" aria-hidden="true"></span><div><strong>Registrando reclamo, espera un momento…</strong><p>Estamos guardando tu solicitud y preparando tu constancia. No cierres la página ni repitas el envío.</p></div></div>
+    <div class="pz-submit">${captchaHTML('cap-lr2')}<div class="pz-actions"><button class="btn" data-send>${S16('send')} Enviar reclamo</button></div></div>
    </div></form>`;
 }
 function lrPage(path, q0) {
   const c = lrCfg(); const i = inst(); const t0 = q0 && q0.get && q0.get('tab'); const cur = t0 === 'consulta' || (q0 && q0.get && q0.get('rcl')) ? 'c' : t0 === 'info' ? 'i' : 'r';
-  const body = `${svNav('libro-de-reclamaciones')}${svHead('lr', [['clock', `Reclamos: ${c.plazoReclamo} días hábiles`], ['clock', `Quejas: ${c.plazoQueja} días hábiles`], ['file', 'Constancia en PDF']])}
-   ${svSteps([['Registra', 'Elige reclamo o queja y describe lo sucedido.'], ['Recibe tus códigos', 'Seguimiento RCL, verificación y constancia PDF con QR.'], ['Atención', 'El responsable lo deriva al área competente.'], ['Respuesta', 'Consulta la respuesta en el portal dentro del plazo.']])}
+  const contact = c.correo || DB.config.correoReclamos || i.correo || '';
+  const contactHTML = contact ? `<a href="mailto:${esc(contact)}">${esc(contact)}</a>${!c.correo ? '<br><small>Contacto institucional</small>' : ''}` : '<span>Contacta al instituto por teléfono.</span>';
+  const body = `${svNav('libro-de-reclamaciones')}<div class="pz-mpv-top">${svHead('lr', null, true)}${svKeyBox('clock', 'Plazos de respuesta', `Reclamos: ${c.plazoReclamo} días · Quejas: ${c.plazoQueja} días`, 'Días hábiles · constancia en PDF con código QR')}</div>
    ${svTabs([['r', 'edit', 'Registrar reclamo o queja'], ['c', 'search', 'Consultar estado'], ['i', 'book', 'Información']], cur)}
    <div data-pane="r" ${cur === 'r' ? '' : 'hidden'}>${lrForm()}</div>
    <div data-pane="c" ${cur === 'c' ? '' : 'hidden'}><section class="card cb pz-qf"><div class="pz-qf-h">${sic('search', 20)}<div><h2>Consultar el estado de mi reclamo o queja</h2><small>Ingresa el seguimiento RCL y el documento completo del reclamante, o el código de verificación de tu constancia.</small></div></div><form data-lrq2 class="form-grid" novalidate><div class="field"><label for="lq2-c">Código de seguimiento</label><input id="lq2-c" name="codigo" placeholder="RCL-${yearNow()}-00001" autocomplete="off"></div><div class="field"><label for="lq2-d">Documento del reclamante o código de verificación</label><input id="lq2-d" name="doc" maxlength="20" placeholder="DNI de 8 dígitos o verificación de 16 caracteres" autocomplete="off"></div><div class="full"><button class="btn">${S16('search')} Consultar</button></div></form><div id="lq2-r" aria-live="polite"></div></section></div>
    <div data-pane="i" ${cur === 'i' ? '' : 'hidden'}><section class="card cb pz-lr-inf">
      <div class="pz-lr-2"><div class="rec">${sic('file', 22)}<b>Reclamo</b><p>Disconformidad relacionada con el servicio educativo o con los trámites brindados por el instituto.</p><small>Plazo de respuesta: ${c.plazoReclamo} días hábiles</small></div><div class="que">${sic('alert', 22)}<b>Queja</b><p>Malestar o descontento respecto a la atención recibida: trato, demora, falta de información, etc.</p><small>Plazo de respuesta: ${c.plazoQueja} días hábiles</small></div></div>
      <h3>Flujo de atención</h3><ol class="pz-flow"><li><b>Recibido</b><span>Registro y constancia PDF descargable.</span></li><li><b>Derivado</b><span>El responsable lo deriva al área competente.</span></li><li><b>En atención</b><span>El área evalúa y propone la respuesta.</span></li><li><b>Atendido</b><span>La respuesta queda disponible en el seguimiento del portal.</span></li></ol>
-     <h3>Responsable de la atención</h3><p><b>${esc(c.responsable || 'Responsable pendiente de asignación')}</b> · ${esc(c.cargo)}<br><a href="mailto:${esc(c.correo)}">${esc(c.correo)}</a></p>
-     <h3>A tener en cuenta</h3><ul><li>El plazo se cuenta desde el día hábil siguiente al registro.</li><li>La formulación del reclamo no impide acudir a otras vías de solución de controversias.</li><li>Base normativa: Decreto Supremo N.º 042-2011-PCM, que obliga a las entidades públicas a contar con un Libro de Reclamaciones.</li></ul></section></div>
-   <div class="pz-info3"><div>${ic('shield')}<b>Registro seguro</b><span>Tu información se registra de manera segura y protegida (Ley N.º 29733).</span></div><div>${ic('search')}<b>Seguimiento</b><span>Con tu código consultas el estado en cualquier momento.</span></div><div>${ic('mail')}<b>Notificación</b><span>Consulta el estado y la respuesta con tu código de seguimiento.</span></div></div>`;
-  const side = `<section class="side-box"><h2>Responsable de la atención</h2><div class="pad" style="font-size:13.5px"><b>${esc(c.responsable || 'Responsable pendiente de asignación')}</b><br>${esc(c.cargo)}<br>✉️ <a href="mailto:${esc(c.correo)}">${esc(c.correo)}</a></div></section>
-   <section class="side-box"><h2>Plazos de respuesta</h2><div class="pad" style="font-size:13.5px"><ul style="padding-left:18px;margin:0"><li>Reclamos: hasta <b>${c.plazoReclamo} días hábiles</b>.</li><li>Quejas: hasta <b>${c.plazoQueja} días hábiles</b>.</li></ul></div></section>
-   <section class="side-box"><h2>¿Necesitas ayuda?</h2><div class="pad" style="font-size:13.5px">📞 ${esc(i.telefono)}<br>✉️ ${esc(c.correo)}<br>🕗 ${esc(i.horario)}</div></section>`;
+     <h3>Responsable de la atención</h3><p><b>${esc(c.responsable || 'Responsable pendiente de asignación')}</b> · ${esc(c.cargo)}<br>${contactHTML}</p>
+     <h3>¿Necesitas ayuda?</h3><p>📞 ${esc(i.telefono)} · 🕗 ${esc(i.horario)}</p>
+     <h3>A tener en cuenta</h3><ul><li>El plazo se cuenta desde el día hábil siguiente al registro.</li><li>La formulación del reclamo no impide acudir a otras vías de solución de controversias.</li><li>Base normativa: Decreto Supremo N.º 042-2011-PCM, que obliga a las entidades públicas a contar con un Libro de Reclamaciones.</li></ul><div class="pz-info3"><div>${ic('shield')}<b>Registro seguro</b><span>Tu información se registra de manera segura y protegida (Ley N.º 29733).</span></div><div>${ic('search')}<b>Seguimiento</b><span>Con tu código consultas el estado en cualquier momento.</span></div><div>${ic('mail')}<b>Notificación</b><span>Consulta el estado y la respuesta con tu código de seguimiento.</span></div></div></section></div>`;
+  const side = null;
   const html = shell(path, { title: 'Libro de Reclamaciones', desc: `Libro de Reclamaciones Virtual del ${inst().nombre}: registra tu reclamo o queja y consulta su estado.`, crumbs: [['Servicios', '#/servicios'], ['Libro de Reclamaciones']], banner: { kicker: 'Servicios en línea', title: 'Libro de Reclamaciones', text: 'Porque un mejor servicio también se construye escuchándote' }, side, body });
   return { html, after: () => bindLr2(q0) };
 }
@@ -7470,13 +7556,15 @@ R('servicios/libro-de-reclamaciones', (path, q0) => lrPage(path, q0));
 R('transparencia/libro-de-reclamaciones', (path, q0) => lrPage('servicios/libro-de-reclamaciones', q0));
 R('libro-de-reclamaciones', (path, q0) => lrPage('servicios/libro-de-reclamaciones', q0 || new URLSearchParams()));
 function bindLr2(q0) {
-  const c = lrCfg(); const f = $('[data-lr2]'); const L = DB.config.limites; const lim = Math.max(2000, L.descripcion || 0);
+  const c = lrCfg(); const f = $('[data-lr2]');let busy=false,pending=null; const L = DB.config.limites; const lim = Math.max(2000, L.descripcion || 0);
   const showTab = k => { $$('.pz-mt [data-tab]').forEach(x => x.setAttribute('aria-selected', x.dataset.tab === k)); $$('[data-pane]').forEach(p => p.hidden = p.dataset.pane !== k); };
   $$('.pz-mt [data-tab]').forEach(b => b.onclick = () => showTab(b.dataset.tab));
   $$('[data-count]', f).forEach(t => t.addEventListener('input', () => { t.parentNode.querySelector('[data-c]').textContent = t.value.length; }));
-  f.addEventListener('reset', () => setTimeout(() => $$('[data-c]', f).forEach(x => x.textContent = '0'), 0));
+  const lrFile = () => { const x = f.adjunto.files[0]; $('[data-l2-file]', f).innerHTML = x ? `${S16('file')} <span>${esc(x.name)}</span> <small>${fsize(x.size)}</small>` : ''; };
+  f.adjunto.addEventListener('change', lrFile);
+  f.addEventListener('reset', () => setTimeout(() => { $$('[data-c]', f).forEach(x => x.textContent = '0'); lrFile(); }, 0));
   f.onsubmit = async e => {
-    e.preventDefault(); const v = Object.fromEntries(new FormData(f)); const er = {};
+    e.preventDefault();if(busy)return; const v = Object.fromEntries(new FormData(f)); const er = {};
     if (!v.tipoDoc) er.tipoDoc = 'Seleccione el tipo de documento.';
     else { const de = validDoc(v.tipoDoc, v.numDoc); if (!v.numDoc) er.numDoc = 'Ingrese el número de documento.'; else if (de) er.numDoc = de; }
     if (String(v.nombresP).trim().length < 2) er.nombresP = 'Ingrese sus nombres.';
@@ -7495,26 +7583,21 @@ function bindLr2(q0) {
     const cap = checkCaptcha(f, 'cap-lr2'); if (cap) er.captcha = cap;
     if (!showErrors(f, er)) return;
     if (rateLimited('lr2', 20)) return toast('Espere unos segundos antes de registrar otro reclamo.', 'err');
-    const btn = $('[data-send]', f); btn.disabled = true;
+    const btn=$('[data-send]',f),progress=$('[data-lr-progress]',f);const signature=JSON.stringify([v,file?[file.name,file.size,file.lastModified]:null]);if(!pending||pending.signature!==signature)pending={signature,key:crypto.randomUUID(),record:null};busy=true;const controls=[...f.elements,...$$('.pz-mt [data-tab]')].map(el=>[el,el.disabled]);controls.forEach(([el])=>el.disabled=true);progress.hidden=false;progress.scrollIntoView({block:'nearest'});btn.textContent='Registrando, espera un momento…';f.setAttribute('aria-busy','true');portalSubmissionStatus('Registrando reclamo. Espera un momento y no cierres la página.');const preventLeave=event=>{event.preventDefault();event.returnValue='';};window.addEventListener('beforeunload',preventLeave);
     try {
+      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));let r=pending.record;if(!r){
       const adj = file ? await storeFile(file, 'rcl') : null;
-      const fecha = nowISO(); const y = String(new Date(fecha).getFullYear()); const C = DB.config.contadores.RCL; C[y] = (C[y] || 0) + 1;
-      let codigo = `RCL-${y}-${pad(C[y], 5)}`; const plazoDias = v.tipo === 'Queja' ? c.plazoQueja : c.plazoReclamo; const nombres = `${v.nombresP.trim()} ${v.apellidos.trim()}`;
-      const r = { id: uid(), codigo, fecha, tipo: v.tipo, nombres, nombresP: v.nombresP.trim(), apellidos: v.apellidos.trim(), tipoDoc: v.tipoDoc, numDoc: v.numDoc.trim(), correo: v.correo.trim(), telefono: (v.telefono || '').trim(), condicion: v.condicion, programaId: v.programaId === 'ninguno' ? '' : v.programaId, fechaHecho: v.fechaHecho, areaHecho: v.areaHecho || '',
+      const fecha = nowISO();
+      let codigo = ''; const plazoDias = v.tipo === 'Queja' ? c.plazoQueja : c.plazoReclamo; const nombres = `${v.nombresP.trim()} ${v.apellidos.trim()}`;
+      r = { id: uid(), codigo, fecha, tipo: v.tipo, nombres, nombresP: v.nombresP.trim(), apellidos: v.apellidos.trim(), tipoDoc: v.tipoDoc, numDoc: v.numDoc.trim(), correo: v.correo.trim(), telefono: (v.telefono || '').trim(), condicion: v.condicion, programaId: v.programaId === 'ninguno' ? '' : v.programaId, fechaHecho: v.fechaHecho, areaHecho: v.areaHecho || '',
         asunto: clamp(v.descripcion.trim().replace(/\s+/g, ' '), 80), descripcion: v.descripcion.trim(), pedido: v.pedido.trim(), adjunto: adj, estado: 'Recibido', plazoDias, vence: diasHabiles(fecha, plazoDias).due.toISOString(), responsable: { nombre: c.responsable, cargo: c.cargo, correo: c.correo }, area: '',
         historial: [{ fecha, usuario: 'portal', estado: 'Recibido', nota: `Registro desde el Libro de Reclamaciones Virtual. Responsable: ${c.responsable} (${c.cargo}).` }], notas: [], respuesta: '', notifInst: 'Pendiente', notifUser: 'Pendiente', anulado: false };
-      coll('reclamos').unshift(r);
-      if (!saveDB()) return;
-      codigo = r.codigo;
-      r.notifInst = mailOut(c.correo, `[${codigo}] Nuevo ${v.tipo.toLowerCase()} registrado`, `${r.nombres} (${r.condicion}) - ${r.descripcion}`);
-      if (DB.config.correoReclamos && DB.config.correoReclamos !== c.correo) mailOut(DB.config.correoReclamos, `[${codigo}] Copia: nuevo ${v.tipo.toLowerCase()}`, r.asunto);
-      r.notifUser = mailOut(r.correo, `Constancia de registro ${codigo}`, `Su ${v.tipo.toLowerCase()} fue registrado el ${fshort(fecha, true)} con el código ${codigo}. Plazo máximo de respuesta: ${plazoDias} días hábiles (hasta el ${fshort(r.vence)}).`);
-      audit('Registro', 'Libro de reclamaciones', codigo, `${v.tipo} registrado desde el portal. Notificación institucional: ${r.notifInst}`); saveDB();
+      pending.record=r;}await portalSubmitService('reclamos',r,pending.key);portalSubmissionStatus('Reclamo registrado. Ya puedes descargar tu constancia.');pending=null;const codigo=r.codigo,fecha=r.fecha,plazoDias=r.plazoDias;
       f.reset();
       const m = modal({ title: `${v.tipo} registrado`, body: `<div class="notice ok">Tu ${esc(v.tipo.toLowerCase())} fue registrado correctamente el ${fdate(fecha, true)}.</div><p>Tu código de seguimiento es:</p><div class="code-box">${codigo}</div><p>Código de verificación: <b class="mono">${esc(r.cargoCod || 'Pendiente de actualización')}</b></p><dl class="kv" style="margin-top:12px"><dt>Responsable</dt><dd>${esc(c.responsable)} · ${esc(c.cargo)}</dd><dt>Plazo de respuesta</dt><dd>${plazoDias} días hábiles (hasta el ${fdate(r.vence)})</dd></dl><p>Puedes descargar tu constancia. Correo de contacto: <b>${esc(r.correo)}</b>. Guarda tu código para consultar el estado.</p>`, foot: `<button class="btn sec" data-print>${S16('print')} Descargar constancia (PDF)</button><button class="btn" data-ok>Aceptar</button>` });
       $('[data-ok]', m.el).onclick = m.close; $('[data-print]', m.el).onclick = () => lrPdf(r, 'constancia');
-    } catch (err) { console.error(err); toast('No se pudo registrar. Intente nuevamente.', 'err'); }
-    finally { btn.disabled = false; }
+    } catch (err) {const message=err.message||'No se pudo confirmar el registro. Conserva los datos y reintenta el mismo envío.';toast(message,'err');portalSubmissionStatus(message);}
+    finally {window.removeEventListener('beforeunload',preventLeave);busy=false;controls.forEach(([el,disabled])=>el.disabled=disabled);progress.hidden=true;f.removeAttribute('aria-busy');btn.innerHTML=`${S16('send')} Enviar reclamo`;}
   };
   const q = $('[data-lrq2]');
   const show = r => { $('#lq2-r').innerHTML = r ? `<div class="pz-track" role="status"><div class="pz-track-h"><div><b class="mono">${esc(r.codigo)}</b> · ${esc(r.tipo)}<br><small>Registrado el ${fdate(r.fecha, true)}</small></div>${stBadge(r.anulado ? 'Anulado' : r.estado)}</div>${svTrack(['Recibido', 'Derivado', 'En atención', 'Atendido'], r.anulado ? 'Anulado' : r.estado, { Recibido: 0, Derivado: 1, 'En atención': 2, Atendido: 3, Cerrado: 3, Anulado: 0 })}<dl class="kv"><dt>Plazo</dt><dd>${lrSem(r)} · vence ${fdate(lrPlazo(r).due)}</dd>${r.area ? `<dt>Área que atiende</dt><dd>${esc(areaName(r.area))}</dd>` : ''}${r.respuesta ? `<dt>Respuesta</dt><dd style="white-space:pre-wrap">${esc(r.respuesta)}</dd>` : ''}</dl><ol class="pz-tl">${(r.historial || []).map(h => `<li><span>${fshort(h.fecha, true)}</span><b>${esc(h.estado)}</b></li>`).join('')}</ol><div style="margin-top:12px"><button type="button" class="btn sm sec" data-lrpdf>${S16('download')} Descargar constancia (PDF)</button></div></div>` : `<div class="notice warn" role="status">No se encontró un registro con ese código y documento. Verifique los datos de su constancia.</div>`; const b = $('[data-lrpdf]'); if (b && r) b.onclick = () => lrPdf(r, 'constancia'); };
@@ -7552,13 +7635,13 @@ async function lrPdf(r, kind) {
   y+=46;
   if(y>267){doc.addPage();y=20;}
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7.8); doc.setTextColor(70);
-  doc.text(doc.splitTextToSize(`La formulación del reclamo no impide acudir a otras vías de solución de controversias ni es requisito previo para interponer una denuncia ante las autoridades competentes. El instituto dará respuesta en un plazo no mayor de ${lrPlazoDias(r)} días hábiles mediante el seguimiento del portal. El envío por correo está pendiente de habilitación. Consulte con el seguimiento y su documento o código de verificación.`, W - 2 * M), M, y + 4);
+  doc.text(doc.splitTextToSize(`La formulación del reclamo no impide acudir a otras vías de solución de controversias ni es requisito previo para interponer una denuncia ante las autoridades competentes. El instituto dará respuesta en un plazo no mayor de ${lrPlazoDias(r)} días hábiles mediante el seguimiento del portal. Los avisos por correo dependen de la configuración institucional. Consulte el seguimiento y su documento o código de verificación.`, W - 2 * M), M, y + 4);
   pdfPie(doc, `Libro de Reclamaciones Virtual · ${lrCfg().correo} · ${inst().direccion}`);
   downloadBlob(doc.output('blob'), `${kind === 'constancia' ? 'Constancia' : 'Hoja'}_${r.codigo}.pdf`);
 }
 
 /* ---------- Panel del Libro de reclamaciones ---------- */
-const lrTabs2 = a => tabsBar([['d', 'Resumen', '#/admin/reclamos'], ['l', 'Bandeja de reclamos', '#/admin/reclamos/bandeja'], ['n', 'Correo pendiente', '#/admin/reclamos/notificaciones'], ['c', 'Responsable y plazos', '#/admin/reclamos/config']], a);
+const lrTabs2 = a => tabsBar([['d', 'Resumen', '#/admin/reclamos'], ['l', 'Bandeja de reclamos', '#/admin/reclamos/bandeja'], ['n', 'Notificaciones por correo', '#/admin/reclamos/notificaciones'], ['c', 'Responsable y plazos', '#/admin/reclamos/config']], a);
 const baseReclamos = CUSTOM.reclamos, baseReclamoDet = reclamoDetalle;
 CUSTOM.reclamos = (parts) => {
   if (parts[2] === 'notificaciones') { const o = lrNotif(); o.html = o.html.replace(lrTabs('n'), lrTabs2('n')); return o; }
@@ -7587,7 +7670,7 @@ reclamoDetalle = function (id) {
   const out = baseReclamoDet(id); const r = byId('reclamos', id); if (!r) return out; const c = lrCfg(); const p = lrPlazo(r);
   const extra = `<div class="panel"><h2>Plazo y derivación</h2><div class="pb" style="display:grid;gap:10px"><div class="meta-list"><span>Responsable: <b>${esc((r.responsable || {}).nombre || c.responsable)}</b> (${esc((r.responsable || {}).cargo || c.cargo)})</span><span>Plazo: ${lrPlazoDias(r)} días hábiles · vence <b>${fdate(p.due)}</b></span><span>${lrSem(r)}</span>${r.area ? `<span>Área que atiende: <b>${esc(areaName(r.area))}</b></span>` : ''}</div>
     ${r.condicion ? `<dl class="kv"><dt>Condición</dt><dd>${esc(r.condicion)}</dd><dt>Programa</dt><dd>${esc((progById(r.programaId) || {}).nombre || '—')}</dd><dt>Fecha del hecho</dt><dd>${r.fechaHecho ? fshort(r.fechaHecho + 'T12:00:00') : '—'}</dd><dt>Área involucrada</dt><dd>${r.areaHecho ? esc(areaName(r.areaHecho)) : '—'}</dd></dl>` : ''}
-    ${r.anulado || r.estado === 'Atendido' ? '' : `<div class="field"><label for="lr-ar">Derivar al área competente</label><select id="lr-ar">${areaOptions(r.area || r.areaHecho || '', { placeholder: 'Seleccione el área' })}</select></div><div class="field"><label for="lr-arn">Indicación para el área</label><input id="lr-arn" class="inp" placeholder="Ej.: Atender y remitir informe en 5 días hábiles"></div><button class="btn sec" data-der>${sic('send')} Derivar y notificar</button>`}
+    ${r.anulado || r.estado === 'Atendido' ? '' : `<div class="field"><label for="lr-ar">Derivar al área competente</label><select id="lr-ar">${areaOptions(r.area || r.areaHecho || '', { placeholder: 'Seleccione el área' })}</select></div><div class="field"><label for="lr-arn">Indicación para el área</label><input id="lr-arn" class="inp" placeholder="Ej.: Atender y remitir informe en 5 días hábiles"></div><button class="btn sec" data-der>${sic('send')} Derivar reclamo</button>`}
     ${r.adjunto && r.adjunto.key ? `<button class="btn ghost sm" data-adj2>${sic('download')} Descargar evidencia</button>` : ''}</div></div>`;
   out.html = out.html.replace('<div style="display:grid;gap:16px;align-content:start"><div class="panel"><h2>Gestión</h2>', '<div style="display:grid;gap:16px;align-content:start">' + extra + '<div class="panel"><h2>Gestión</h2>');
   const a0 = out.after;
@@ -7598,7 +7681,7 @@ reclamoDetalle = function (id) {
     const d = $('[data-der]'); if (d) d.onclick = () => { const v = $('#lr-ar').value; if (!v) return toast('Seleccione el área.', 'err'); const a = areaOf(v); const ind = $('#lr-arn').value.trim(); const me = currentUser().usuario;
       r.area = v; if (r.estado === 'Recibido') r.estado = 'Derivado'; r.historial.push({ fecha: nowISO(), usuario: me, estado: r.estado, nota: `Derivado a ${areaName(v)}${ind ? ': ' + ind : ''}` });
       if (a) mailOut(a.correo, `[${r.codigo}] ${r.tipo} derivado para su atención`, `${r.nombres}: ${r.descripcion}${ind ? ' · Indicación: ' + ind : ''} · Vence: ${fshort(lrPlazo(r).due)}`);
-      audit('Derivación', 'Libro de reclamaciones', r.codigo, areaName(v)); stamp(r); if (saveDB()) { toast('Derivación registrada. El envío por correo está pendiente de configuración.', 'ok'); route(); } };
+      audit('Derivación', 'Libro de reclamaciones', r.codigo, areaName(v)); stamp(r); if (saveDB()) { toast('Derivación registrada. Avisos en cola para el solicitante y el área receptora.', 'ok'); route(); } };
   };
   return out;
 };
@@ -7614,9 +7697,9 @@ function lrConfigAdm() {
       <div class="field"><label for="lc-pq">Plazo de respuesta a quejas (días hábiles)</label><input id="lc-pq" name="plazoQueja" type="number" min="1" max="30" value="${c.plazoQueja}"></div>
       <div class="field"><label for="lc-al">Alertar cuando falten (días hábiles)</label><input id="lc-al" name="alerta" type="number" min="1" max="10" value="${c.alerta}"></div>
       <div class="field full"><label for="lc-f">Flujo de derivación interna (texto informativo)</label><textarea id="lc-f" name="flujo" rows="4">${esc(c.flujo)}</textarea></div>
-      <div class="full"><ol class="pz-flow h"><li><b>Recibido</b><span>Registro, código RCL y constancia.</span></li><li><b>Derivado</b><span>El responsable lo deriva al área competente.</span></li><li><b>En atención</b><span>El área evalúa y propone la respuesta.</span></li><li><b>Atendido</b><span>Respuesta notificada al usuario.</span></li></ol></div>
+      <div class="full"><ol class="pz-flow h"><li><b>Recibido</b><span>Registro, código RCL y constancia.</span></li><li><b>Derivado</b><span>El responsable lo deriva al área competente.</span></li><li><b>En atención</b><span>El área evalúa y propone la respuesta.</span></li><li><b>Atendido</b><span>Respuesta disponible en la consulta de seguimiento.</span></li></ol></div>
       <div class="full" style="text-align:right">${canEdit ? '<button class="btn">Guardar</button>' : '<span class="note">Solo el administrador puede modificar esta configuración.</span>'}</div></div></div></form>`;
-  return { html, after: () => { const f = $('[data-lrcfg]'); f.onsubmit = e => { e.preventDefault(); if (!canEdit) return; if (!reEmail.test(f.correo.value)) return toast('Correo no válido.', 'err'); if (f.responsable.value.trim().length < 5) return toast('Indique el responsable.', 'err');
+  return { html, after: () => { const f = $('[data-lrcfg]'); f.onsubmit = e => { e.preventDefault(); if (!canEdit) return; if (!reEmail.test(f.correo.value)) return toast('Correo no válido.', 'err'); if (f.responsable.value.trim().length < 2) return toast('Indique el responsable.', 'err');
     Object.assign(c, { responsable: f.responsable.value.trim(), cargo: f.cargo.value.trim(), correo: f.correo.value.trim(), areaInicial: f.areaInicial.value, plazoReclamo: Math.max(1, +f.plazoReclamo.value || 15), plazoQueja: Math.max(1, +f.plazoQueja.value || 15), alerta: Math.max(1, +f.alerta.value || 3), flujo: f.flujo.value.trim() });
     DB.config.correoReclamos = c.correo; audit('Configuración', 'Libro de reclamaciones', 'Responsable y plazos'); if (saveDB()) { toast('Configuración guardada.', 'ok'); route(); } }; } };
 }
@@ -7683,7 +7766,7 @@ function bolsaEmpresas() {
     e.validada = ok; e.estadoVal = ok ? 'Aprobada' : 'Rechazada'; e.motivoRech = ok ? '' : motivo.trim(); e.valPor = me.usuario; e.fechaVal = new Date().toISOString().slice(0, 10);
     if (u && u.ixId) IX.notifyTo('u:' + u.ixId, ok ? 'Tu empresa fue aprobada: ya puedes publicar convocatorias' : 'Tu solicitud de empresa no fue aprobada: ' + e.motivoRech, 'bolsa');
     mailOut(e.correo, ok ? `Cuenta de empresa aprobada - Bolsa laboral ${inst().nombre}` : `Cuenta de empresa no aprobada - Bolsa laboral ${inst().nombre}`, ok ? `La empresa ${e.nom} fue validada por la ${c.responsable}. Ingrese con su RUC y contraseña.` : `Motivo: ${e.motivoRech}`);
-    IX.logAct(ok ? 'Aprobar empresa' : 'Rechazar empresa', 'Bolsa laboral', `${e.nom} (RUC ${e.ruc})${ok ? '' : ' · ' + e.motivoRech}`); if(!IX.persist())return false; toast(ok ? `${e.nom} aprobada. El correo está pendiente de configuración.` : `${e.nom} rechazada. El correo está pendiente de configuración.`, 'ok'); route();
+    IX.logAct(ok ? 'Aprobar empresa' : 'Rechazar empresa', 'Bolsa laboral', `${e.nom} (RUC ${e.ruc})${ok ? '' : ' · ' + e.motivoRech}`); if(!IX.persist())return false; toast(ok ? `${e.nom} aprobada. Aviso registrado en la cola de correo.` : `${e.nom} rechazada. Aviso registrado en la cola de correo.`, 'ok'); route();
   };
   return { html, after: () => {
     $$('[data-ef]').forEach(b => b.onclick = () => { st.f = b.dataset.ef; route(); });
@@ -8034,7 +8117,7 @@ async function cvPdf(p) {
 const autorizado = p => !!(p && p.cv && p.cv.autoriza && p.cv.autoriza.ok);
 const directorioVisible = publicTeacherVisible;
 function openPublicTeacher(id) { const p = byId('personas', id); if (!p) return; if (autorizado(p)) return cvDownload(p, 'public'); if (directorioVisible(p)) teacherModal(id, (p.programas || [])[0]); }
-const pzPlanaTabs = a => `<nav class="pz-ptabs" aria-label="Plana institucional"><a href="#/nosotros/plana-jerarquica" ${a === 'j' ? 'aria-current="page"' : ''}>Personal directivo jerárquico</a><a href="#/nosotros/plana-docente" ${a === 'd' ? 'aria-current="page"' : ''}>Docentes</a></nav>`;
+const pzPlanaTabs = () => '';
 const tcard = (p, cargo, btn2) => `<article class="pz-tcard"><div class="ph"><img src="${img(p.foto)}" alt="Fotografía de ${esc(fullName(p))}" loading="lazy"></div><div class="tb"><h3>${esc(fullName(p))}</h3><small>${esc(cargo)}</small>${p.correo ? `<a class="ml" href="mailto:${esc(p.correo)}">${S16('mail')} <span>${esc(p.correo).replace('@', '<wbr>@')}</span></a>` : ''}<div class="bt"><button class="b1" data-hv="${p.id}">${autorizado(p) ? 'Hoja de vida' : 'Ficha pública'}</button>${btn2}</div></div></article>`;
 R('nosotros/plana-docente', (path, q) => {
   const pg0 = page('docentes'); if (!pg0 || !isPub(pg0)) return notFound(path);
@@ -8047,7 +8130,7 @@ R('nosotros/plana-docente', (path, q) => {
    <h2 style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">${esc(sel.label)} <span class="badge">${ds.length} docente(s) · ${total} en total</span></h2>
    ${ds.length ? `<div class="pz-tgrid">${ds.map(d => tcard(d, d.especialidad + (d.condicion ? ' · ' + d.condicion : ''), `<button class="b2" data-ud="${d.id}">Unidades didácticas</button>`)).join('')}</div>` : emptyMsg('docentes en esta categoría')}
    <p class="pz-legal">${S16('shield')} Las fichas procedentes del portal institucional de origen muestran únicamente información profesional ya publicada. Los CV completos requieren autorización de difusión, conforme a la Ley N.º 29733. Información actualizada al ${fdate(nowISO())} por el responsable del Portal Web.</p>`;
-  const html = shell(path, { title: 'Plana Docente ' + yearNow() + (sel ? ' - ' + sel.label : ''), desc: stripTags(pg0.contenido), crumbs: [['Nosotros', '#/nosotros/presentacion'], ['Plana Docente']], banner: { title: 'Nosotros', text: 'Conoce nuestra identidad, historia y el compromiso con la formación técnica.' }, side: nosotrosSide('plana-docente') + sidePromo('Docentes que inspiran el talento del futuro', 'La educación no cambia el mundo, cambia a las personas que van a cambiar el mundo. — Paulo Freire'), body });
+  const html = shell(path, { title: 'Plana Docente ' + yearNow() + (sel ? ' - ' + sel.label : ''), desc: stripTags(pg0.contenido), crumbs: [['Nosotros', '#/nosotros/presentacion'], ['Plana Docente']], banner: { title: 'Directorio profesional', text: 'Perfiles de la comunidad académica de Palpa.' }, side: nosotrosSide('plana-docente') + sidePromo('Docentes que inspiran el talento del futuro', 'La educación no cambia el mundo, cambia a las personas que van a cambiar el mundo. — Paulo Freire'), body });
   return { html, after: () => {
     $$('[data-cat]').forEach(b => b.onclick = () => go('#/nosotros/plana-docente?p=' + b.dataset.cat));
     $('[data-ps]').onsubmit = e => { e.preventDefault(); go('#/nosotros/plana-docente?p=' + sel.id + '&q=' + encodeURIComponent(e.target.q.value.trim())); };
@@ -8064,7 +8147,7 @@ R('nosotros/plana-jerarquica', path => {
    <div class="pz-tgrid three">${ord.map(({ j, p }) => tcard(p, j.cargo, `<button class="b2" data-cg="${j.id}">Cargo académico</button>`)).join('')}</div>
    ${d ? `<section class="director" aria-label="Mensaje de la Dirección General" style="margin-top:26px"><img src="${img(d.p.foto)}" alt="Fotografía de ${esc(fullName(d.p))}"><div class="msg"><h2 style="color:#fff;font-size:18px">Mensaje de la Dirección General</h2><blockquote>“${esc(pg0.mensaje)}”</blockquote><strong>${esc(fullName(d.p))}</strong><span>${esc(d.j.cargo)}</span></div></section>` : ''}
    ${coords.length ? `<h2>Coordinadores de programas de estudio</h2><div class="pz-tgrid">${coords.map(({ pp, p }) => tcard(p, 'Coordinador(a) de ' + pp.nombre, `<button class="b2" data-ud="${p.id}" data-prog="${pp.id}">Unidades didácticas</button>`)).join('')}</div>` : ''}`;
-  const html = shell(path, { title: 'Plana Jerárquica', desc: stripTags(pg0.contenido), crumbs: [['Nosotros', '#/nosotros/presentacion'], ['Plana Jerárquica']], banner: { title: 'Nosotros', text: 'Conoce nuestra identidad, historia y el compromiso con la formación técnica.' }, side: nosotrosSide('plana-jerarquica') + sidePromo('Trabajo en equipo para una mejor educación técnica'), body });
+  const html = shell(path, { title: 'Plana Jerárquica', desc: stripTags(pg0.contenido), crumbs: [['Nosotros', '#/nosotros/presentacion'], ['Plana Jerárquica']], banner: { title: 'Directorio profesional', text: 'Perfiles de la comunidad académica de Palpa.' }, side: nosotrosSide('plana-jerarquica') + sidePromo('Trabajo en equipo para una mejor educación técnica'), body });
   return { html, after: () => {
     $$('[data-hv]').forEach(b => b.onclick = () => openPublicTeacher(b.dataset.hv));
     $$('[data-ud]').forEach(b => b.onclick = () => teacherModal(b.dataset.ud, b.dataset.prog));
@@ -8129,14 +8212,16 @@ const SV_MODS = {
 const SV_ORDER = ['mpv', 'lr', 'cert', 'bolsa'];
 /* barra de módulos (siempre visible arriba del contenido) */
 function svNav(active) {
-  const it = SV_ORDER.map(k => [SV_MODS[k].slug, SV_MODS[k].short, SV_MODS[k].icon]).concat([['complementarios', 'Complementarios', 'layers']]);
+  const it = SV_ORDER.map(k => [SV_MODS[k].slug, SV_MODS[k].short, SV_MODS[k].icon]);
   return `<nav class="pz-svnav" aria-label="Servicios en línea"><a href="#/servicios" class="pz-svnav-h ${active === '' ? 'on' : ''}" title="Servicios en línea" aria-label="Servicios en línea">${sic('home', 16)}</a>${it.map(([s, l, i]) => `<a href="#/servicios/${s}" class="${s === active ? 'on' : ''}" ${s === active ? 'aria-current="page"' : ''}>${sic(i, 16)}<span>${l}</span></a>`).join('')}</nav>`;
 }
 /* cabecera del módulo */
-function svHead(k, chips) {
+function svHead(k, chips, compact) {
   const m = SV_MODS[k];
-  return `<header class="pz-mh t-${m.tone}"><span class="pz-mh-ic">${sic(m.icon, 30)}</span><div class="pz-mh-tx"><span class="pz-mh-k">Servicios en línea · ${esc(inst().nombreCorto)}</span><h1>${esc(m.title)}</h1><p>${esc(m.text)}</p>${chips && chips.length ? `<ul class="pz-mh-ch">${chips.map(([i, t]) => `<li>${sic(i, 15)}<span>${t}</span></li>`).join('')}</ul>` : ''}</div></header>`;
+  return `<header class="pz-mh t-${m.tone}${compact ? ' compact' : ''}"><span class="pz-mh-ic">${sic(m.icon, 30)}</span><div class="pz-mh-tx"><span class="pz-mh-k">Servicios en línea · ${esc(inst().nombreCorto)}</span><h1>${esc(m.title)}</h1><p>${esc(m.text)}</p>${chips && chips.length ? `<ul class="pz-mh-ch">${chips.map(([i, t]) => `<li>${sic(i, 15)}<span>${t}</span></li>`).join('')}</ul>` : ''}</div></header>`;
 }
+/* recuadro compacto de dato clave junto a la cabecera */
+const svKeyBox = (icon, kicker, big, note, label) => `<section class="pz-horario compact" aria-label="${esc(label || kicker)}"><div class="pz-h-ic">${ic(icon)}</div><div><span class="pz-k">${kicker}</span><b class="pz-hh">${big}</b>${note ? `<span class="pz-live note">${note}</span>` : ''}</div></section>`;
 /* pasos del servicio */
 const svSteps = steps => `<ol class="pz-mst">${steps.map(([t, d], i) => `<li><span>${i + 1}</span><div><b>${t}</b><small>${d}</small></div></li>`).join('')}</ol>`;
 /* pestañas del módulo (compatibles con los enlazadores existentes: data-tab / data-pane) */
@@ -8170,22 +8255,9 @@ R('servicios', path => {
    y cada título se copian al registro «Verificación de documentos» del portal, que es el que
    consulta la página pública y donde el personal puede anular un documento. */
 const PZ_SRC = { cert: 'Certificación modular', tit: 'Grados y títulos' };
-function pzSyncCerts(A) {
-  const X = A || (IX && IX.db ? XD() : null); if (!X || !X.estudiantes) return false;
-  const R0 = coll('certificados'); let ch = false; const seen = new Set();
-  const pidOf = id => { const m = Object.entries(X.progMap || {}).find(([, v]) => +v === +id); if (m) return m[0]; const pr = (X.programas || []).find(p => p.id === id); return pr && pr.pid || ''; };
-  const put = (ref, w) => { seen.add(ref); let r = R0.find(c => c.ref === ref) || (w.codigo && R0.find(c => !c.ref && c.codigo === w.codigo));
-    if (!r) { R0.unshift(stamp(Object.assign({ id: uid(), ref, estado: 'Válido' }, w), true)); ch = true; return; }
-    if (!r.ref) { r.ref = ref; ch = true; }
-    Object.keys(w).forEach(k => { if (w[k] !== undefined && r[k] !== w[k]) { r[k] = w[k]; ch = true; } }); };
-  const E = id => X.estudiantes.find(e => e.id === id);
-  (X.certs || []).forEach(c => { const e = E(c.est), m = (X.modulos || []).find(x => x.id === c.mod) || {}; if (!e || !c.num) return;
-    put('ix:cert:' + c.id, { codigo: String(c.num).toUpperCase(), dni: e.dni, nombres: e.nom, programaId: pidOf(e.prog), tipo: 'Certificado modular', detalle: [m.cod, m.nombre].filter(Boolean).join(' · '), fecha: String(c.fecha).slice(0, 10), origen: PZ_SRC.cert }); });
-  (X.titulos || []).forEach(t => { const e = E(t.est); if (!e || !t.cod) return;
-    put('ix:tit:' + t.id, { codigo: String(t.cod).toUpperCase(), dni: e.dni, nombres: e.nom, programaId: pidOf(e.prog), tipo: 'Título de Profesional Técnico', detalle: t.resol || '', fecha: String(t.tit || t.culm).slice(0, 10), origen: PZ_SRC.tit }); });
-  R0.forEach(r => { if (r.ref && /^ix:(cert|tit):/.test(r.ref) && !seen.has(r.ref) && r.estado === 'Válido') { r.estado = 'Anulado'; r.motivo = 'Retirado del registro académico'; ch = true; } });
-  return ch;
-}
+// The PHP transaction maintains the registry and preserves issued snapshots.
+// Browser-side catalog synchronization must not rewrite historical documents.
+function pzSyncCerts() { return false; }
 window.pzSyncCerts = pzSyncCerts;
 if (typeof IXHOST === 'object' && IXHOST.saveAcad) { const _sv = IXHOST.saveAcad; IXHOST.saveAcad = a => { try { pzSyncCerts(a); } catch (e) { console.error(e); } return _sv(a); }; }
 if (typeof SPECS === 'object' && SPECS.certificados) { const S0 = SPECS.certificados;
@@ -8201,15 +8273,15 @@ if (typeof SPECS === 'object' && SPECS.certificados) { const S0 = SPECS.certific
 R('servicios/consulta-certificados', (path, q) => {
   const pre = (q && q.get ? q.get('codigo') || '' : '').trim().toUpperCase(); const i = inst();
   const nCert = coll('certificados').length;
-  const body = `${svNav('consulta-certificados')}${svHead('cert', [['zap', 'Resultado inmediato'], ['shield', 'Datos personales protegidos'], ['table', 'Código QR en cada documento']])}
+  const body = `${svNav('consulta-certificados')}<div class="pz-mpv-top">${svHead('cert', null, true)}${svKeyBox('zap', 'Verificación en línea', 'Resultado inmediato', 'Código QR en cada documento · datos personales protegidos')}</div>
    <div class="pz-cq-wrap"><form class="card cb pz-cq" data-cq novalidate><h2>${sic('search', 20)} Verificar un documento</h2>
      <div class="pz-seg" role="radiogroup" aria-label="Buscar por"><label><input type="radio" name="t" value="codigo" checked><span>${sic('key', 15)} Código de verificación</span></label><label><input type="radio" name="t" value="dni"><span>${sic('user', 15)} DNI del titular</span></label></div>
      <div class="field"><label for="cq-v" data-cql>Código de verificación</label><input id="cq-v" name="v" autocomplete="off" placeholder="Ej.: CERT-2025-000123" value="${esc(pre)}"><div class="hint" data-cqh>Figura en la parte inferior del documento, junto al código QR.</div></div>
      ${captchaHTML('cap-cq')}
      <button class="btn pz-cq-b">${sic('shield', 17)} Verificar autenticidad</button></form>
-    <aside class="pz-cq-i"><h3>¿Qué puedo verificar?</h3><ul><li>${sic('award', 16)} Títulos de Profesional Técnico</li><li>${sic('file', 16)} Certificados de estudios y modulares</li><li>${sic('clipboard', 16)} Constancias emitidas por el instituto</li></ul><h3>¿Tienes el documento impreso?</h3><p>Escanea su código QR con la cámara del celular: se abrirá esta página con el resultado.</p><p class="pz-cq-n">Por seguridad, el DNI del titular se muestra parcialmente oculto (Ley N.º 29733).</p></aside></div>
+    <section class="pz-cq-i"><div><h3>¿Qué puedo verificar?</h3><ul><li>${sic('award', 16)} Títulos de Profesional Técnico</li><li>${sic('file', 16)} Certificados de estudios y modulares</li><li>${sic('clipboard', 16)} Constancias emitidas por el instituto</li></ul></div><div><h3>¿Tienes el documento impreso?</h3><p>Escanea su código QR con la cámara del celular: se abrirá esta página con el resultado.</p><p class="pz-cq-n">Por seguridad, el DNI del titular se muestra parcialmente oculto (Ley N.º 29733).</p></div><div><h3>Emisión de documentos</h3><p>Para solicitar un certificado o una constancia, presenta tu solicitud por la <a href="#/servicios/mesa-de-partes">Mesa de Partes Virtual</a>. Costos según el <a href="#/transparencia/tupa">TUPA vigente</a>.</p><h3>Secretaría Académica</h3><p>📞 ${esc(i.telefono)} · ✉️ <a href="mailto:${esc(i.correo)}">${esc(i.correo)}</a><br>🕗 ${esc(i.horario)}</p></div></section></div>
    <div id="cq-r" aria-live="polite"></div>`;
-  const side = `<section class="side-box"><h2>Emisión de documentos</h2><div class="pad" style="font-size:13.5px">Para solicitar un certificado o una constancia, presenta tu solicitud por la <a href="#/servicios/mesa-de-partes">Mesa de Partes Virtual</a>.<br><br>Costos según el <a href="#/transparencia/tupa">TUPA vigente</a>.</div></section><section class="side-box"><h2>Secretaría Académica</h2><div class="pad" style="font-size:13.5px">📞 ${esc(i.telefono)}<br>✉️ <a href="mailto:${esc(i.correo)}">${esc(i.correo)}</a><br>🕗 ${esc(i.horario)}</div></section>`;
+  const side = null;
   const html = shell(path, { title: 'Consulta de certificados', desc: `Verificación en línea de títulos, certificados y constancias del ${inst().nombre}.`, crumbs: [['Servicios', '#/servicios'], ['Consulta de certificados']], banner: { kicker: 'Servicios en línea', title: 'Consulta de certificados', text: 'Verificación de autenticidad en línea' }, side, body });
   const card = d => `<article class="pz-cert ${d.ok ? 'ok' : 'bad'}" role="status"><div class="pz-cert-s">${sic(d.ok ? 'check' : 'x', 30)}<b>${d.ok ? 'DOCUMENTO VÁLIDO' : 'DOCUMENTO ANULADO'}</b><small>${d.ok ? 'Emitido por el ' + esc(i.nombreCorto) : 'Este documento no tiene validez'}</small></div>
      <dl><dt>Tipo de documento</dt><dd>${esc(d.tipo)}</dd>${d.det ? `<dt>${/T[ií]tulo/.test(d.tipo) ? 'Resolución' : 'Detalle'}</dt><dd>${esc(d.det)}</dd>` : ''}<dt>Código</dt><dd class="mono">${esc(d.cod)}</dd>${d.titular ? `<dt>Titular</dt><dd><b>${esc(d.titular)}</b></dd>` : ''}${d.dni ? `<dt>DNI</dt><dd class="mono">${esc(maskDni(d.dni))}</dd>` : ''}${d.prog ? `<dt>Programa de estudios</dt><dd>${esc(d.prog)}</dd>` : ''}<dt>Fecha de emisión</dt><dd>${esc(d.fecha)}</dd>${d.motivo ? `<dt>Motivo de anulación</dt><dd>${esc(d.motivo)}</dd>` : ''}${d.origen ? `<dt>Registro</dt><dd>${esc(d.origen)}</dd>` : ''}<dt>Verificado el</dt><dd>${fdate(new Date().toISOString(), true)}</dd></dl></article>`;
@@ -8270,7 +8342,7 @@ R('servicios/bolsa-laboral', (path, q) => {
   const emps = D.empresas.filter(e => e.validada); const vac = ofs.reduce((a, o) => a + (+o.vac || 0), 0);
   const tab0 = q && q.get && (q.get('tab') === 'empresas' || q.get('registro') === '1') ? 'e' : q && q.get && q.get('tab') === 'como' ? 'i' : 'o';
   const progs = [...new Set(ofs.map(o => o.prog).filter(Boolean))].map(id => xprog(id));
-  const body = `${svNav('bolsa-laboral')}${svHead('bolsa', [['briefcase', `<b>${ofs.length}</b> ofertas vigentes`], ['users', `<b>${vac}</b> vacantes`], ['building', `<b>${emps.length}</b> empresas aliadas`]])}
+  const body = `${svNav('bolsa-laboral')}<div class="pz-mpv-top">${svHead('bolsa', null, true)}${svKeyBox('briefcase', 'Bolsa Laboral en cifras', `${ofs.length} ofertas · ${vac} vacantes`, `${emps.length} empresa(s) aliada(s) · responsable: ${esc(cfg.responsable || 'pendiente de asignación')}`)}</div>
    ${svTabs([['o', 'briefcase', 'Ofertas laborales'], ['e', 'building', 'Para empresas'], ['i', 'book', '¿Cómo postular?']], tab0)}
    <div data-pane="o" ${tab0 === 'o' ? '' : 'hidden'}>
     <div class="pz-of-f" role="search"><div class="pz-in2">${sic('search', 17)}<input type="search" data-ofq placeholder="Buscar por puesto, empresa o palabra clave" aria-label="Buscar ofertas"></div>
@@ -8290,7 +8362,7 @@ R('servicios/bolsa-laboral', (path, q) => {
     ${svSteps([['Busca la oferta', 'Filtra por programa de estudios o modalidad.'], ['Presiona «Postular»', 'El sistema te lleva al inicio de sesión de la intranet.'], ['Inicia sesión', 'Con tu DNI y contraseña de estudiante o egresado.'], ['Confirma', 'Tu postulación se envía con tu perfil y tu CV.']])}
     <section class="card cb pz-bl-faq"><h2>Preguntas frecuentes</h2><h3>¿Quién puede postular?</h3><p>Estudiantes y egresados de ${esc(inst().nombre)} con cuenta en la intranet. Si aún no tienes cuenta, solicítala en Secretaría Académica.</p><h3>¿Dónde subo mi CV?</h3><p>En la intranet, en Bolsa laboral › Mi perfil. Es obligatorio para postular.</p><h3>¿Cómo sé si me seleccionaron?</h3><p>En la intranet verás el estado de cada postulación (Recibida, En revisión, Seleccionado) y recibirás un aviso.</p><h3>Soy empresa, ¿cuánto cuesta?</h3><p>Nada. El registro y la publicación de ofertas son gratuitos.</p></section>
    </div>`;
-  const side = `<section class="side-box"><h2>Bolsa Laboral en cifras</h2><div class="pad pz-bl-kp"><div><b>${ofs.length}</b><span>ofertas vigentes</span></div><div><b>${vac}</b><span>vacantes</span></div><div><b>${emps.length}</b><span>empresas aliadas</span></div></div></section><section class="side-box"><h2>Responsable</h2><div class="pad" style="font-size:13.5px"><b>${esc(cfg.responsable || 'Responsable pendiente de asignación')}</b><br><a href="mailto:${esc(cfg.correo)}">${esc(cfg.correo)}</a></div></section>`;
+  const side = null;
   const html = shell(path, { title: 'Bolsa Laboral', desc: `Bolsa Laboral del ${inst().nombre}: ofertas de empleo y prácticas para estudiantes y egresados, y registro libre de empresas.`, crumbs: [['Servicios', '#/servicios'], ['Bolsa Laboral']], banner: { kicker: 'Servicios en línea', title: 'Bolsa Laboral', text: 'Conectamos talento con empresas' }, side, body });
   return { html, after: () => {
     const showTab = k => { $$('.pz-mt [data-tab]').forEach(x => x.setAttribute('aria-selected', x.dataset.tab === k)); $$('[data-pane]').forEach(p => p.hidden = p.dataset.pane !== k); if (k === 'e') { const b = $('[data-tab="pubbolsa:empresa"]'); if (b && b.getAttribute('aria-selected') !== 'true') b.click(); } };
@@ -8344,13 +8416,13 @@ function pzDocNav(cur) {
   const X = IX && IX.db ? XD() : { certs: [], titulos: [] }; const reg = alive('certificados');
   const it = [['ix-certificados', 'award', 'Certificación modular', `${X.certs.length} certificaciones`, '1. Registra la certificación de cada módulo'],
     ['ix-titulos', 'grad', 'Grados y títulos', `${X.titulos.length} títulos`, '2. Registra los títulos otorgados'],
-    ['certificados', 'shield', 'Verificación de documentos', `${reg.filter(r => r.estado === 'Válido').length} válidos · ${reg.filter(r => r.estado !== 'Válido').length} anulados`, '3. Registro único: se verifica y se anula aquí']];
+    ['certificados', 'shield', 'Constancias / Certificados', `${reg.filter(r => r.estado === 'Válido').length} válidos · ${reg.filter(r => r.estado !== 'Válido').length} anulados`, '3. Registra constancias y certificados de cursos']];
   const ok = m => typeof can !== 'function' || can(m);
   return `<nav class="pz-dnav" aria-label="Certificados y títulos">${it.filter(x => ok(x[0])).map(([m, i, l, n, d]) => `<a href="#/admin/${m}" class="${m === cur ? 'on' : ''}" ${m === cur ? 'aria-current="page"' : ''}>${sic(i, 18)}<span><b>${l}</b><small>${d}</small><em>${n}</em></span></a>`).join('')}<a class="pub" href="#/servicios/consulta-certificados" target="_blank" rel="noopener">${sic('external', 16)}<span><b>Consulta pública</b><small>Así lo ve el ciudadano</small></span></a></nav>`;
 }
 if (typeof IXHOST === 'object' && IXHOST.head) { const _hd = IXHOST.head;
   IXHOST.head = (title, desc, actions, code) => { const t = String(title).replace(/<[^>]+>/g, '');
-    const k = t === 'Constancias y certificados' ? 'ix-certificados' : t === 'Grados y títulos' ? 'ix-titulos' : null;
+    const k = ['Constancias y certificados','Certificación modular'].includes(t) ? 'ix-certificados' : t === 'Grados y títulos' ? 'ix-titulos' : null;
     if (!k || !currentUser() || isCommunity()) return _hd(title, desc, actions, code);
     const tt = k === 'ix-certificados' ? 'Certificación modular' : t;
     return admHead(tt, desc || '', actions || '', k === 'ix-certificados' ? 'award' : 'grad', [['Certificados y títulos'], [tt]]) + pzDocNav(k); }; }
@@ -8378,14 +8450,8 @@ if (typeof SPECS === 'object' && SPECS.certificados) { const tb = SPECS.certific
 })();
 
 
-/* La identidad y el contenido institucional proceden de PHP/MySQL. */
-window.piscoOficial = function (D) {};
 
 
-/* =========================================================
-   CARGA INSTITUCIONAL 2026 (se cargan al crear la base) e integración final
-   ========================================================= */
-window.piscoSeed = function (D) {};
 /* Integración al terminar de cargar la aplicación */
 document.addEventListener('DOMContentLoaded', async () => {
   try {
@@ -8419,6 +8485,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   label();
 })();
 </script>
-<script src="/portal-server.js"></script>
+<script src="<?=htmlspecialchars($portalAssets['portal-server.js'],ENT_QUOTES,'UTF-8')?>"></script>
+<script src="<?=htmlspecialchars($portalAssets['intranet.js'],ENT_QUOTES,'UTF-8')?>"></script>
+<script src="<?=htmlspecialchars($portalAssets['academic-documents.js'],ENT_QUOTES,'UTF-8')?>"></script>
+<script src="<?=htmlspecialchars($portalAssets['standalone-services.js'],ENT_QUOTES,'UTF-8')?>"></script>
 </body>
 </html>

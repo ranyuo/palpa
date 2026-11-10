@@ -2,6 +2,16 @@
 declare(strict_types=1);
 final class PortalRules
 {
+    private const LABELS=['username'=>'el usuario','password'=>'la contraseña','current_password'=>'la contraseña actual','name'=>'el nombre','email'=>'el correo','correo'=>'el correo','nombres'=>'los nombres','nombresP'=>'los nombres','apellidos'=>'los apellidos','tipo'=>'el tipo','tipoDoc'=>'el tipo de documento','numDoc'=>'el número de documento','documento'=>'el documento','telefono'=>'el teléfono','tel'=>'el teléfono','condicion'=>'la condición','programa'=>'el programa','programaId'=>'el programa de estudios','fechaHecho'=>'la fecha del hecho','areaHecho'=>'el área del hecho','descripcion'=>'la descripción','pedido'=>'el pedido','adjunto'=>'el adjunto','mensaje'=>'el mensaje','tipoPersona'=>'el tipo de persona','direccion'=>'la dirección','dir'=>'la dirección','tipoTramite'=>'el tipo de trámite','docRef'=>'el documento de referencia','asunto'=>'el asunto','folios'=>'el número de folios','observaciones'=>'las observaciones','areaDestino'=>'el área de destino','archivos'=>'los adjuntos','ruc'=>'el RUC','nom'=>'la razón social','sector'=>'el sector','ubic'=>'la ubicación','contacto'=>'el contacto','cargoC'=>'el cargo del contacto','web'=>'la web','reference'=>'el código de consulta','document'=>'el documento','mode'=>'el modo de consulta','original'=>'el nombre del archivo','data'=>'el archivo',
+        'programas.cod'=>'el código del programa','programas.sem'=>'el número de semestres','uds.cod'=>'el código de la unidad didáctica','uds.horas'=>'las horas','uds.cred'=>'los créditos','ambientes.cod'=>'el código del ambiente','ambientes.cap'=>'la capacidad','estudiantes.dni'=>'el DNI del alumno','certs.num'=>'el número de certificación','notas.nota'=>'la nota','titulos.cod'=>'el código del título','areas.cod'=>'el código del área','tramites.nombre'=>'el nombre del trámite','tramites.dias'=>'el plazo en días','empresas.ruc'=>'el RUC de la empresa','ofertas.vac'=>'el número de vacantes','usuarios.u'=>'el usuario'];
+    /** Nombre legible de un campo para los mensajes de validación. */
+    public static function label(string $field): string { return self::LABELS[$field]??'el campo '.$field; }
+    public static function duplicate(string $field,mixed $value): string { return ucfirst(self::label($field)).' «'.trim((string)$value).'» ya está registrado.'; }
+    public static function range(string $field,mixed $min,mixed $max): string
+    {
+        $limit=match(true){$min!==null&&$max!==null=>'entre '.$min.' y '.$max,$min!==null=>'como mínimo '.$min,default=>'como máximo '.$max};
+        return 'Revisa '.self::label($field).': debe estar '.$limit.'.';
+    }
     public static function normal(string $value): string
     {$value=strtr($value,['Á'=>'A','É'=>'E','Í'=>'I','Ó'=>'O','Ú'=>'U','Ñ'=>'N','á'=>'a','é'=>'e','í'=>'i','ó'=>'o','ú'=>'u','ñ'=>'n','ü'=>'u']);return strtolower(trim(preg_replace('/\s+/u',' ',$value)));}
     public static function safeLink(mixed $value,bool $internal=true): bool
@@ -23,6 +33,33 @@ final class PortalRules
         if(!is_array($value))return;if($depth>40)throw new PortalError(422,'El contenido tiene demasiados niveles.');
         foreach($value as $key=>$child){if(in_array($key,['__proto__','prototype','constructor'],true))throw new PortalError(422,'El contenido contiene un campo reservado.');self::structure($child,$depth+1);}
     }
+    /** Reject malformed collection shapes before synchronization or file persistence. */
+    public static function stateShape(array $before,array $after): void
+    {
+        foreach($before as $key=>$value){
+            if(!is_array($value))continue;
+            if(!isset($after[$key])||!is_array($after[$key]))throw new PortalError(422,'Colección no válida: '.$key.'.');
+            if(array_is_list($value)&&!array_is_list($after[$key]))throw new PortalError(422,'La colección '.$key.' debe ser una lista.');
+            if(array_is_list($value)){
+                $ids=[];foreach($after[$key] as $row){
+                    if(!is_array($row))throw new PortalError(422,'Registro no válido en '.$key.'.');
+                    if($key==='estadisticas')continue;
+                    $id=$row['id']??null;
+                    if((!is_string($id)&&!is_int($id))||!preg_match('/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$/D',(string)$id)||isset($ids[(string)$id]))throw new PortalError(422,'Identificador vacío, no válido o duplicado en '.$key.'.');
+                    $ids[(string)$id]=true;
+                }
+            }
+        }
+        foreach($before['academico'] as $key=>$value){
+            if(!is_array($value))continue;
+            $rows=$after['academico'][$key]??null;
+            if(!is_array($rows))throw new PortalError(422,'Colección académica no válida: '.$key.'.');
+            if(in_array($key,['cfg','seq','perms','publicados','progMap'],true))continue;
+            if(!array_is_list($rows))throw new PortalError(422,'El catálogo académico '.$key.' debe ser una lista.');
+            foreach($rows as $row)if(!is_array($row))throw new PortalError(422,'Registro académico no válido en '.$key.'.');
+        }
+    }
+
     private static function alive(array $rows): array{return array_values(array_filter($rows,fn($r)=>!($r['deleted']??false)));}
     private static function changed(array $before,array $row): bool{return !PortalPolicy::equal(PortalPolicy::find($before,'id',$row['id']??null),$row);}
     private static function date(mixed $v): bool

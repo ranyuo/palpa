@@ -1,10 +1,10 @@
-CREATE TABLE IF NOT EXISTS pisco_state (
+CREATE TABLE IF NOT EXISTS intranet_state (
     id INT UNSIGNED PRIMARY KEY,
     data JSON NOT NULL,
     revision BIGINT UNSIGNED NOT NULL DEFAULT 1,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-CREATE TABLE IF NOT EXISTS pisco_users (
+CREATE TABLE IF NOT EXISTS intranet_users (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(80) NOT NULL UNIQUE,
     name VARCHAR(150) NOT NULL,
@@ -19,21 +19,21 @@ CREATE TABLE IF NOT EXISTS pisco_users (
     last_login DATETIME NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-CREATE TABLE IF NOT EXISTS pisco_rate_limits (
+CREATE TABLE IF NOT EXISTS intranet_rate_limits (
     rate_key CHAR(64) PRIMARY KEY,
     hits INT UNSIGNED NOT NULL DEFAULT 1,
     expires_at BIGINT UNSIGNED NOT NULL,
     INDEX (expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-CREATE TABLE IF NOT EXISTS pisco_schema (
+CREATE TABLE IF NOT EXISTS intranet_schema (
     id INT UNSIGNED PRIMARY KEY,
     version INT UNSIGNED NOT NULL
 ) ENGINE=InnoDB;
-CREATE TABLE IF NOT EXISTS pisco_visits (
+CREATE TABLE IF NOT EXISTS intranet_visits (
     visit_day DATE PRIMARY KEY,
     views BIGINT UNSIGNED NOT NULL DEFAULT 0
 ) ENGINE=InnoDB;
-CREATE TABLE IF NOT EXISTS pisco_files (
+CREATE TABLE IF NOT EXISTS intranet_files (
     id CHAR(32) PRIMARY KEY,
     owner_user_id BIGINT UNSIGNED NULL,
     owner_session CHAR(64) NOT NULL,
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS pisco_files (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE IF NOT EXISTS pisco_audit (
+CREATE TABLE IF NOT EXISTS intranet_audit (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     occurred_at DATETIME(6) NOT NULL,
     user_id BIGINT UNSIGNED NULL,
@@ -57,7 +57,26 @@ CREATE TABLE IF NOT EXISTS pisco_audit (
     details JSON NOT NULL,
     INDEX (occurred_at), INDEX (entity,record_key), INDEX (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-CREATE TABLE IF NOT EXISTS pisco_settings (
+CREATE TABLE IF NOT EXISTS intranet_settings (
     setting_key VARCHAR(80) PRIMARY KEY,
     setting_value JSON NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE IF NOT EXISTS intranet_mail (
+    id CHAR(64) PRIMARY KEY,
+    record_id CHAR(64) NOT NULL,
+    source_type VARCHAR(30) NOT NULL DEFAULT 'expedientes',
+    source_id VARCHAR(100) NOT NULL DEFAULT '',
+    source_key CHAR(64) NOT NULL DEFAULT '',
+    event VARCHAR(40) NOT NULL DEFAULT 'registro',
+    reference VARCHAR(100) NOT NULL,
+    recipient VARCHAR(254) NOT NULL,
+    subject VARCHAR(255) NOT NULL,
+    body TEXT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'Pendiente',
+    attempts INT UNSIGNED NOT NULL DEFAULT 0,
+    last_error VARCHAR(255) NULL,
+    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    next_attempt_at DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
+    sent_at DATETIME NULL,
+    INDEX (status,next_attempt_at), INDEX (record_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

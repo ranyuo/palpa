@@ -7,7 +7,7 @@ final class PortalPolicy
     public const TOP = [
         'noticias'=>['imagen'],'categoriasNoticia'=>['imagen'],'eventos'=>['imagen'],
         'paginas'=>['imagen'],'reconocimientos'=>['imagen'],'slides'=>['imagen'],'enlaces'=>['imagen'],'locales'=>['imagen'],
-        'personas'=>['secretaria','docente'],'jerarquica'=>['secretaria'],'programas'=>['coordinador'],
+        'personas'=>['secretaria','docente'],'jerarquica'=>['secretaria'],'programas'=>['coordinador','secretaria'],
         'egresados'=>['secretaria','coordinador'],'admisiones'=>['secretaria'],'matriculas'=>['secretaria'],
         'becarios'=>['secretaria'],'becasPeriodos'=>['secretaria'],'tiposBeca'=>['secretaria'],
         'estadisticas'=>['secretaria','directivo'],'certificados'=>['secretaria'],
@@ -28,7 +28,7 @@ final class PortalPolicy
         $base=self::defaults()['roles'];
         foreach($roles as $key=>$role){
             if($key==='admin'||!isset($base[$key])||!is_array($role)||array_diff(array_keys($role),['label','mods'])||!is_string($role['label']??null)||trim($role['label'])===''||strlen($role['label'])>100||!preg_match('/^[\p{L}\p{N} ._,()\/-]+$/u',$role['label'])||!is_array($role['mods']??null)||!array_is_list($role['mods']))throw new PortalError(422,'Configuración de roles no válida.');
-            foreach($role['mods'] as $mod)if(!is_string($mod)||!in_array($mod,$base[$key]['mods'],true))throw new PortalError(422,'Permiso fuera del ámbito del rol.');
+            foreach($role['mods'] as $mod)if(!is_string($mod)||!in_array($mod,IntranetScope::MODULES,true)||!in_array($mod,$base[$key]['mods'],true))throw new PortalError(422,'Permiso fuera del ámbito del rol.');
             if(!in_array('dashboard',$role['mods'],true))throw new PortalError(422,'El inicio del panel debe permanecer habilitado.');
         }
     }
@@ -40,26 +40,31 @@ final class PortalPolicy
     {
         $base=self::defaults();
         foreach(self::$roleOverrides as $key=>$role)if($key!=='admin'&&isset($base['roles'][$key]))$base['roles'][$key]=array_replace($base['roles'][$key],$role);
+        $base['roles']=IntranetScope::roles($base['roles']);
+        foreach($base['specs'] as &$spec)if($spec['collection']==='programas')foreach($spec['fields'] as &$field)if(in_array($field['name'],['resumen','perfil','campoItems','imagen','horario','turno'],true)){$field['required']=false;$field['publishRequired']=false;}
+        foreach($base['specs'] as &$spec)if($spec['collection']==='certificados')foreach($spec['fields'] as &$field)if($field['name']==='programaId'){$field['required']=false;$field['publishRequired']=false;}
+        unset($spec,$field);
         return $base;
     }
     public static function collectionModule(string $key,array $user=[]): string
     {
+        if($key==='programas')return 'ix-config';
         if($key==='personas'&&self::role($user)==='docente')return 'cvdocente';
         foreach(self::defaults()['specs'] as $spec)if($spec['collection']===$key)return $spec['module'];
         return ['slides'=>'portada','enlaces'=>'enlaces','categoriasNoticia'=>'noticias','tiposDocumento'=>'documentos','tupaDocs'=>'tupa','tiposBeca'=>'becas','becasPeriodos'=>'becas','becarios'=>'becas','personas'=>'docentes'][$key]??$key;
     }
 
-    public static function role(array $user): string { return $user['rol'] ?? 'admin'; }
+    public static function role(array $user): string { return $user['rol'] ?? 'publico'; }
     public static function can(array $user, string $module): bool
     {
-        return self::role($user)==='admin' || in_array($module,self::definitions()['roles'][self::role($user)]['mods']??[],true);
+        return in_array($module,IntranetScope::MODULES,true) && (self::role($user)==='admin' || in_array($module,self::definitions()['roles'][self::role($user)]['mods']??[],true));
     }
     public static function level(array $data, array $user, string $module): int
     {
         if (self::role($user)==='admin') return 2;
         $role=self::ACADEMIC_ROLES[self::role($user)]??'';
         $portalModule=['alumnos'=>'ix-alumnos','horarios'=>'ix-horarios','certificados'=>'ix-certificados','titulos'=>'ix-titulos','bolsa'=>'ix-bolsa','config'=>'ix-config','usuarios'=>'usuarios','docentes'=>'cvdocente'][$module]??'';
-        if ($module==='docentes' && self::role($user)==='docente') return 2;
+        if ($module==='docentes' && self::role($user)==='docente') return self::can($user,'cvdocente')?2:0;
         if (!$portalModule || !self::can($user,$portalModule)) return 0;
         return min(2,max(0,(int)($data['academico']['perms'][$role][$module]??0)));
     }
@@ -82,7 +87,7 @@ final class PortalPolicy
     private static function academicScope(string $key,array $row,array $data,array $user): bool
     {
         $role=self::role($user);$est=self::binding($user,'est');$emp=self::binding($user,'emp');$doc=self::binding($user,'doc');
-        if($role==='coordinador' && in_array($key,['estudiantes','sesiones'],true)) return ($row['prog']??null)===self::ownProgram($data,$user);
+        if($role==='coordinador' && in_array($key,['programas','uds','modulos','ambientes','estudiantes','sesiones'],true)) return ($key==='programas'?($row['id']??null):($row['prog']??null))===self::ownProgram($data,$user);
         if(in_array($role,['estudiante','egresado'],true)) {
             if($key==='estudiantes')return $est!==null&&(int)($row['id']??0)===$est;
             if(in_array($key,['certs','notas','titulos','perfilesLab','postulaciones'],true))return $est!==null&&(int)($row['est']??0)===$est;
@@ -95,7 +100,7 @@ final class PortalPolicy
                 $student=self::find($data['academico']['estudiantes']??[],'id',$est);
                 if(!$student)return false;
                 $g=implode('|',[$student['prog'],$student['ciclo'],$student['sec'],$student['turno'],$data['academico']['cfg']['periodo']]);
-                return isset($data['academico']['publicados'][$g])&&(int)($row['prog']??0)===(int)$student['prog']&&(string)($row['ciclo']??'')===(string)$student['ciclo']&&($row['sec']??'')===$student['sec']&&($row['turno']??'')===$student['turno'];
+                return isset($data['academico']['publicados'][$g])&&($row['per']??'')===($data['academico']['cfg']['periodo']??'')&&(int)($row['prog']??0)===(int)$student['prog']&&(string)($row['ciclo']??'')===(string)$student['ciclo']&&($row['sec']??'')===$student['sec']&&($row['turno']??'')===$student['turno'];
             }
         }
         if($role==='docente') {
@@ -117,6 +122,7 @@ final class PortalPolicy
     public static function key(string $path,array $row): string
     {
         if(isset($row['id']))return 'id:'.(string)$row['id'];
+        if($path==='academico.docs')return 'cod:'.(string)($row['cod']??'');
         if(str_ends_with($path,'perfilesLab'))return 'est:'.(string)($row['est']??'');
         if(str_ends_with($path,'perfilesDoc'))return 'doc:'.(string)($row['doc']??'');
         if(str_ends_with($path,'estadisticas'))return ($row['anio']??'').'|'.($row['programaId']??'');
@@ -230,7 +236,14 @@ final class PortalPolicy
             $ownContact=in_array($role,['estudiante','egresado'],true)&&$key==='estudiantes';
             $ownDocument=in_array($role,['estudiante','egresado'],true)&&$key==='docs';
             $company=$role==='empresa'&&in_array($key,['empresas','ofertas','postulaciones'],true);
+            if(($ownProfile||$company)&&!self::can($user,'ix-bolsa'))throw new PortalError(403,'Tu perfil no tiene habilitado el módulo de Bolsa Laboral.');
+            if($docProfile&&!self::can($user,'cvdocente'))throw new PortalError(403,'Tu perfil no tiene habilitado el módulo de CV docente.');
+            if($ownDocument&&!self::can($user,'ix-certificados')&&!self::can($user,'ix-titulos'))throw new PortalError(403,'Tu perfil no tiene habilitada la emisión de documentos.');
             if(!$module||(!$ownProfile&&!$docProfile&&!$company&&!$ownContact&&!$ownDocument&&self::level($full,$user,$module)<2))throw new PortalError(403,'Tu rol no puede modificar el módulo académico '.$key.'.');
+            if($key==='cfg'){
+                if($role==='coordinador')throw new PortalError(403,'Los parámetros generales requieren Secretaría o Administración.');
+                foreach($value as $setting=>$v)if(!self::equal($base['cfg'][$setting]??null,$v)){if(in_array($setting,['nombre','siglas','director','direccion','web'],true))throw new PortalError(403,'La identidad se configura en la intranet.');$out['cfg'][$setting]=$v;}continue;
+            }
             if($key==='publicados'){
                 foreach(array_unique([...array_keys($base[$key]??[]),...array_keys($value)]) as $group){
                     if(self::equal($value[$group]??null,$base[$key][$group]??null))continue;
